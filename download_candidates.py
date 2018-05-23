@@ -43,7 +43,7 @@ with open(full_name, 'rb') as csvfile:
             else:
                 try:
                     status = int(row[4])
-                    if status == 1 or status == 2:
+                    if status == 1 or status == 2 or status == 0:
                         articles.append((row[0], row[1], row[2], status, row[5]))
                 except ValueError:
                     pass
