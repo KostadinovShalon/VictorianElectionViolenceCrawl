@@ -6,8 +6,7 @@ def upload_file(document_id, file_to_upload, filename):
     transport.connect(username="data_feeder", password="Arp48dEx")
     sftp = paramiko.SFTPClient.from_transport(transport)
     sftp.chdir("static")
-    sftp = paramiko.SFTPClient.from_transport(transport)
-    sftp.chdir("static")
+    sftp.chdir("documents")
     try:
         sftp.chdir(str(document_id))  # Test if remote_path exists
     except IOError:

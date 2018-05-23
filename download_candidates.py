@@ -4,7 +4,6 @@ from DB.dbconn import update_candidate, insert, update_art_url, update_page_url
 from FilesHandler.BNAHandler import BNAHandler
 from FilesHandler.WNOHandler import WNOHandler
 from FilesHandler.FileHandler import upload_file
-from FilesHandler.pdf_cropper import crop_bna
 from DB.databasemodels import PortalDocument
 import datetime
 
@@ -99,32 +98,12 @@ if len(articles) > 0:
                     print "Portal document inserted"
                     if tag == "BNA":
                         item_url = article_url.replace("download", "items")
-                        handler = BNAHandler()
+                        handler = BNAHandler(item_url)
                         print "Downloading article"
-                        article_file = handler.download_and_upload_file(article_url, document.id)
+                        article_file = handler.download_and_upload_file(document.id)
                         print "Article downloaded and uploaded to the server"
-                        update_page_url(document.id, 'static/' + str(document.id) + "/page.pdf")
-                        items = handler.get_dim(item_url)
-                        searched_item = next((item for item in items if item['Id'] == '/'.join(article_url.split('/')[5:-1])
-                                             .upper()), None)
-                        count = 0
-                        arts_url = ""
-                        for page_area in searched_item['PageAreas']:
-                            print "Cropping #" + str(count + 1)
-                            if count != 0:
-                                arts_url += ";"
-                            xb = int(page_area['XBottomLeft'])
-                            yb = int(page_area['YBottomLeft'])
-                            xt = int(page_area['XTopRight'])
-                            yt = int(page_area['YTopRight'])
-                            w = int(page_area['Width'])
-                            h = int(page_area['Height'])
-                            cropped = crop_bna(article_file, xb, yb, xt, yt, w, h)
-                            upload_file(document.id, cropped, "art" + str(count) + ".pdf")
-                            print "Cropped and uploaded"
-                            arts_url += "static/" + str(document.id) + "/art" + str(count) + ".pdf"
-                            count = count + 1
-                        update_art_url(document.id, arts_url)
+                        update_page_url(document.id, 'static/documents/' + str(document.id) + "/page.pdf")
+                        update_art_url(document.id, 'static/documents/' + str(document.id) + "/art.pdf")
                         print "Documents updated with success!"
                     elif tag == "WNO":
                         handler = WNOHandler(article_url)
@@ -168,7 +147,6 @@ if len(articles) > 0:
                                 update_page_url(document.id, 'static/' + str(document.id) + "/page_HR.jpg")
 
                         print "Documents uploaded with success!"
-
 
             else:
                 print "Article not found in " + full_json_path
