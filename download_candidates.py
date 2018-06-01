@@ -42,7 +42,7 @@ with open(full_name, 'rb') as csvfile:
             else:
                 try:
                     status = int(row[4])
-                    if status == 1 or status == 2 or status == 0:
+                    if status is not None:
                         articles.append((row[0], row[1], row[2], status, row[5]))
                 except ValueError:
                     pass
@@ -83,15 +83,21 @@ if len(articles) > 0:
                 update_candidate(candidate_id, str(article_status))
                 print "Candidate document updated"
                 if article_status == 1:
-                    document = PortalDocument(source_id=tag, doc_title=article_doc_title.encode('latin-1', 'ignore'),
+                    description_article = jarticle['description']
+                    jtitle = jarticle['title']
+                    if len(article_doc_title) > 100:
+                        article_doc_title = article_doc_title[:99]
+                    if len(jtitle) > 100:
+                        jtitle = jtitle[:99]
+                    document = PortalDocument(source_id="2", doc_title=article_doc_title.encode('latin-1', 'ignore'),
                                               pdf_location="", pdf_page_location="",
                                               ocr=jarticle['ocr'].encode('latin-1', 'ignore'),
                                               pdf_thumbnail_location="No", candidate_document_id=candidate_id,
-                                              description=jarticle['description'].encode('latin-1', 'ignore'),
+                                              description=description_article.encode('latin-1', 'ignore'),
                                               publication_date=publication_date,
                                               publication_location=county.encode('latin-1', 'ignore'),
                                               publication_title=jarticle['newspaper'].encode('latin-1', 'ignore'),
-                                              title=jarticle['title'].encode('latin-1', 'ignore'),
+                                              title=jtitle.encode('latin-1', 'ignore'),
                                               type=jarticle['type_'].encode('latin-1', 'ignore'),
                                               url=jarticle['download_page'], word_count=jarticle['word'])
                     insert(document)
