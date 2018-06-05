@@ -5,8 +5,16 @@ def upload_file(document_id, file_to_upload, filename):
     transport = paramiko.Transport(("coders.victorianelectionviolence.uk", 22))
     transport.connect(username="data_feeder", password="Arp48dEx")
     sftp = paramiko.SFTPClient.from_transport(transport)
-    sftp.chdir("static")
-    sftp.chdir("documents")
+    try:
+        sftp.chdir("static")  # Test if remote_path exists
+    except IOError:
+        sftp.mkdir("static")  # Create remote_path
+        sftp.chdir("static")
+    try:
+        sftp.chdir("documents")  # Test if remote_path exists
+    except IOError:
+        sftp.mkdir("documents")  # Create remote_path
+        sftp.chdir("documents")
     try:
         sftp.chdir(str(document_id))  # Test if remote_path exists
     except IOError:
