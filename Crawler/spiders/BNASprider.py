@@ -100,7 +100,13 @@ class BNASpider(Spider):
 
     def after_login(self, response):
         print '\nAfter Login..\n'
-        Cookie = response.headers.getlist('Set-Cookie')[0].split(';')[0].split('session_0=')[1]
+        Cookie = ''
+        for scookie in response.headers.getlist('Set-Cookie'):
+            cookie = scookie.split(';')[0].split('session_0=')[1]
+            if cookie != '':
+                Cookie = cookie
+                break
+        #Cookie = response.headers.getlist('Set-Cookie')[0].split(';')[0].split('session_0=')[1]
         # Cookie = response.headers
         session_cookies = {'session_0':Cookie}
         if Cookie == '':
@@ -110,7 +116,7 @@ class BNASpider(Spider):
                 DB.dbconn.insert_search(search)
             count = 0
             for url in self.parse_urls:
-                yield scrapy.Request(url, meta={"keyword_count": count}, cookies = session_cookies, callback = self.parse_page)
+                yield scrapy.Request(url, meta={"keyword_count": count}, cookies=session_cookies, callback = self.parse_page)
                 count = count + 1
 
     def parse_page(self, response):
