@@ -108,18 +108,18 @@ if len(articles) > 0:
                         print "Downloading article"
                         article_file = handler.download_and_upload_file(document.id)
                         print "Article downloaded and uploaded to the server"
-                        update_page_url(document.id, 'static/documents/' + str(document.id) + "/page.pdf")
-                        update_art_url(document.id, 'static/documents/' + str(document.id) + "/art.pdf")
+                        update_page_url(document.id, 'documents/' + str(document.id) + "/page.pdf")
+                        update_art_url(document.id, 'documents/' + str(document.id) + "/art.pdf")
                         print "Documents updated with success!"
                     elif tag == "WNO":
                         handler = WNOHandler(article_url)
                         print "Downloading article"
                         if high_resolution:
                             handler.download_and_upload_high_resolution_image(document.id)
-                            update_page_url(document.id, 'static/' + str(document.id) + "/page_HR.jpg")
+                            update_page_url(document.id, 'documents/' + str(document.id) + "/page_HR.jpg")
                         else:
                             handler.download_and_upload_file(document.id)
-                            update_page_url(document.id, 'static/' + str(document.id) + "/page.jpg")
+                            update_page_url(document.id, 'documents/' + str(document.id) + "/page.jpg")
                         print "Article downloaded and uploaded to the server"
 
                         dims = handler.get_dim()
@@ -142,7 +142,7 @@ if len(articles) > 0:
                                 cropped = handler.get_cropped_image(x, y, w, h)
                                 upload_file(document.id, cropped, "art" + str(count) + ".jpg")
                                 print "Cropped and uploaded"
-                                arts_url += "static/" + str(document.id) + "/art" + str(count) + ".pdf"
+                                arts_url += "documents/" + str(document.id) + "/art" + str(count) + ".pdf"
                                 count = count + 1
                             update_art_url(document.id, arts_url)
                         else:
@@ -150,7 +150,7 @@ if len(articles) > 0:
                             if not high_resolution:
                                 print "Downloading high resolution image"
                                 handler.download_and_upload_high_resolution_image(document.id)
-                                update_page_url(document.id, 'static/' + str(document.id) + "/page_HR.jpg")
+                                update_page_url(document.id, 'documents/' + str(document.id) + "/page_HR.jpg")
 
                         print "Documents uploaded with success!"
 
