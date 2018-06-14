@@ -19,7 +19,10 @@ def write_new_search_results(search_id, filename):
             info = "[" + info[:-1] + "]"
             jarray = json.loads(info)
             jarticle = next((row for row in jarray if row['download_url'] == search_result.url), None)
-            ocr = jarticle["ocr"]
+            if jarticle is None:
+                jarticle = next((row for row in jarray if row['download_page'] == search_result.url), None)
+            if jarticle is not None:
+                ocr = jarticle["ocr"]
         candidate_document = CandidateDocument(title=search_result.title,
                                            url=search_result.url,
                                            description=search_result.description,
