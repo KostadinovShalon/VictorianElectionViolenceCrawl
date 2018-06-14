@@ -51,6 +51,7 @@ class CandidateDocument(Base):
     page = Column(Integer)
     publication_date = Column(Date)
     word_count = Column(Integer)
+    ocr = Column(String)
 
     def __repr__(self):
         return "<Search Result (title = '%s', type = '%s', date = '%s')>" % (

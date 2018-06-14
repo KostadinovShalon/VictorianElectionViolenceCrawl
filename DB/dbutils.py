@@ -1,6 +1,7 @@
 from DB.databasemodels import ArchiveSearchResult, CandidateDocument
 from DB import dbconn
 import csv
+import json
 
 
 def write_new_search_results(search_id, filename):
@@ -10,6 +11,15 @@ def write_new_search_results(search_id, filename):
             .filter(ArchiveSearchResult.archive_search_id == search_id)\
             .filter(~ArchiveSearchResult.url.in_(dbconn.session\
                                                  .query(CandidateDocument.url))):
+        full_json_path = "Crawler/Records/" + filename + ".json"
+        ocr = ""
+        with open(full_json_path, 'rb') as jsonfile:
+            info = jsonfile.read()
+            info = info.strip()
+            info = "[" + info[:-1] + "]"
+            jarray = json.loads(info)
+            jarticle = next((row for row in jarray if row['download_url'] == search_result.url), None)
+            ocr = jarticle["ocr"]
         candidate_document = CandidateDocument(title=search_result.title,
                                            url=search_result.url,
                                            description=search_result.description,
@@ -19,10 +29,11 @@ def write_new_search_results(search_id, filename):
                                            publication_date=search_result.publication_date,
                                            status="",
                                            word_count=search_result.word_count,
-                                           page=search_result.page)
+                                           page=search_result.page,
+                                           ocr=ocr.encode('latin-1', 'ignore'))
         dbconn.insert(candidate_document)
 
-    needing_coding = dbconn.session.query(CandidateDocument.id, CandidateDocument.url, CandidateDocument.title,
+        needing_coding = dbconn.session.query(CandidateDocument.id, CandidateDocument.url, CandidateDocument.title,
                                           CandidateDocument.description, CandidateDocument.status, CandidateDocument.title)\
         .filter(CandidateDocument.url.in_(unique_new_results))\
         .filter(CandidateDocument.status != '0')\
