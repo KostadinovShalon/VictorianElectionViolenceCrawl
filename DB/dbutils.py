@@ -13,6 +13,7 @@ def write_new_search_results(search_id, filename):
                                                  .query(CandidateDocument.url))):
         full_json_path = "Crawler/Records/" + filename + ".json"
         ocr = ""
+        page = 0
         with open(full_json_path, 'rb') as jsonfile:
             info = jsonfile.read()
             info = info.strip()
@@ -23,6 +24,7 @@ def write_new_search_results(search_id, filename):
                 jarticle = next((row for row in jarray if row['download_page'] == search_result.url), None)
             if jarticle is not None:
                 ocr = jarticle["ocr"]
+                page = int(jarticle["page"])
         candidate_document = CandidateDocument(title=search_result.title,
                                            url=search_result.url,
                                            description=search_result.description,
@@ -32,7 +34,7 @@ def write_new_search_results(search_id, filename):
                                            publication_date=search_result.publication_date,
                                            status="",
                                            word_count=search_result.word_count,
-                                           page=search_result.page,
+                                           page=page,
                                            ocr=ocr.encode('latin-1', 'ignore'))
         dbconn.insert(candidate_document)
 
