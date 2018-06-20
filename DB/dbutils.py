@@ -38,7 +38,7 @@ def write_new_search_results(search_id, filename):
                                            ocr=ocr.encode('latin-1', 'ignore'))
         dbconn.insert(candidate_document)
 
-        needing_coding = dbconn.session.query(CandidateDocument.id, CandidateDocument.url, CandidateDocument.title,
+    needing_coding = dbconn.session.query(CandidateDocument.id, CandidateDocument.url, CandidateDocument.title,
                                           CandidateDocument.description, CandidateDocument.status, CandidateDocument.title)\
         .filter(CandidateDocument.url.in_(unique_new_results))\
         .filter(CandidateDocument.status != '0')\
