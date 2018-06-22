@@ -90,16 +90,16 @@ if len(articles) > 0:
                         article_doc_title = article_doc_title[:99]
                     if len(jtitle) > 100:
                         jtitle = jtitle[:99]
-                    document = PortalDocument(source_id="2", doc_title=article_doc_title.encode('latin-1', 'ignore'),
+                    document = PortalDocument(source_id="2", doc_title=article_doc_title.decode('latin-1').encode('latin-1', 'ignore'),
                                               pdf_location="", pdf_page_location="",
                                               ocr=jarticle['ocr'].encode('latin-1', 'ignore'),
                                               pdf_thumbnail_location="No", candidate_document_id=candidate_id,
-                                              description=description_article.encode('latin-1', 'ignore'),
+                                              description=description_article.decode('latin-1').encode('latin-1', 'ignore'),
                                               publication_date=publication_date,
-                                              publication_location=county.encode('latin-1', 'ignore'),
-                                              publication_title=jarticle['newspaper'].encode('latin-1', 'ignore'),
+                                              publication_location=county,
+                                              publication_title=jarticle['newspaper'],
                                               title=jtitle.encode('latin-1', 'ignore'),
-                                              type=jarticle['type_'].encode('latin-1', 'ignore'),
+                                              type=jarticle['type_'],
                                               url=jarticle['download_page'], word_count=jarticle['word'])
                     insert(document)
                     print "Portal document inserted"
