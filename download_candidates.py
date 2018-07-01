@@ -90,11 +90,13 @@ if len(articles) > 0:
                         article_doc_title = article_doc_title[:99]
                     if len(jtitle) > 100:
                         jtitle = jtitle[:99]
-                    document = PortalDocument(source_id="2", doc_title=article_doc_title.decode('latin-1').encode('latin-1', 'ignore'),
+                    doc_title = article_doc_title.decode('latin-1').encode('latin-1', 'ignore')
+                    des = description_article.encode('latin-1', 'ignore')
+                    document = PortalDocument(source_id="2", doc_title=doc_title,
                                               pdf_location="", pdf_page_location="",
                                               ocr=jarticle['ocr'].encode('latin-1', 'ignore'),
                                               pdf_thumbnail_location="No", candidate_document_id=candidate_id,
-                                              description=description_article.decode('latin-1').encode('latin-1', 'ignore'),
+                                              description= des,
                                               publication_date=publication_date,
                                               publication_location=county,
                                               publication_title=jarticle['newspaper'],
