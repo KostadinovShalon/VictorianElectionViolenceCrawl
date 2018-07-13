@@ -96,7 +96,7 @@ class WNOHandler:
         imb.seek(0)
         im.save('test10.jpg')
         print "Uploading image to the server. It may take several minutes"
-        upload_file(document_id, imb, "page_HR.jpg")
+        upload_file(document_id, imb, "page.jpg")
 
     def get_cropped_image(self, x, y, w=512, h=512):
         download_url = self.BASE_INFO_JSON_URL + str(self.pageid) \
