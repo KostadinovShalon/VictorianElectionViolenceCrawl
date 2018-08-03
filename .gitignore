@@ -5,4 +5,7 @@
 *.pyc
 
 #IDE files
-./.idea
+/.idea/*
+
+#Local Records
+Crawler/Records/*
