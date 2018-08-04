@@ -27,11 +27,13 @@ def update_candidate(candidate_id, status):
         update(values={"status": status})
     session.commit()
 
+
 def update_page_url(document_id, page_url):
     session.query(PortalDocument). \
         filter(PortalDocument.id == document_id). \
         update(values={"pdf_page_location": page_url})
     session.commit()
+
 
 def update_art_url(document_id, pdf_url):
     session.query(PortalDocument). \

@@ -5,7 +5,6 @@ from bs4 import BeautifulSoup
 import DB.dbconn
 from Crawler.items import PageItem
 import re
-import sys
 import scrapy
 import HTMLParser
 import requests
@@ -15,8 +14,6 @@ import urllib
 
 from DB.databasemodels import ArchiveSearch
 
-reload(sys)  
-sys.setdefaultencoding('utf-8')
 
 class WNOSpider(Spider):
     name = "WNO"

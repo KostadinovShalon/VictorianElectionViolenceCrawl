@@ -26,7 +26,6 @@ else:
         hr = raw_input('High resolution? [Y/N]')
         high_resolution = hr == 'Y' or hr == 'y'
 
-
 full_name = "Crawler/Records/pending_" + f + ".csv"
 full_json_path = "Crawler/Records/" + f + ".json"
 
@@ -75,13 +74,12 @@ if len(articles) > 0:
                 county = jarticle['county']
             elif tag == "WNO":
                 jarticle = next((row for row in jarray if row['download_page'] == article_url), None)
-                publication_date = jarticle['publish'][:4].replace('st', '').replace('nd', '').replace('rd', '')\
+                publication_date = jarticle['publish'][:4].replace('st', '').replace('nd', '').replace('rd', '') \
                     .replace('th', '')
                 publication_date += jarticle['publish'][4:]
                 publication_date = datetime.datetime.strptime(publication_date, "%d%B%Y")
             if jarticle is not None:
                 publication_date = '{0.year:4d}-{0.month:02d}-{0.day:02d}'.format(publication_date)
-                #update_candidate(candidate_id, str(article_status))
                 if article_status == 1:
                     file_processed = False
                     art_uploaded = False
@@ -94,15 +92,15 @@ if len(articles) > 0:
                     doc_title = article_doc_title.decode('latin-1').encode('latin-1', 'ignore')
                     des = description_article.encode('latin-1', 'ignore')
                     ocr = jarticle['ocr'].encode('latin-1', 'ignore')
-                    check_if_exists = dbconn.session.query(PortalDocument.id)\
-                                        .filter(PortalDocument.ocr == ocr)\
-                                        .filter(PortalDocument.url == jarticle['download_page']).all()
+                    check_if_exists = dbconn.session.query(PortalDocument.id) \
+                        .filter(PortalDocument.ocr == ocr) \
+                        .filter(PortalDocument.url == jarticle['download_page']).all()
                     if len(check_if_exists) is 0:
                         document = PortalDocument(source_id="2", doc_title=doc_title,
                                                   pdf_location="", pdf_page_location="",
                                                   ocr=ocr,
                                                   pdf_thumbnail_location="No", candidate_document_id=candidate_id,
-                                                  description= des,
+                                                  description=des,
                                                   publication_date=publication_date,
                                                   publication_location=county,
                                                   publication_title=jarticle['newspaper'],
@@ -155,7 +153,8 @@ if len(articles) > 0:
                                         cropped = handler.get_cropped_image(x, y, w, h)
                                         upload_file(document.id, cropped, "art" + str(count) + ".jpg")
                                         print "Cropped and uploaded"
-                                        arts_url += "/static/documents/" + str(document.id) + "/art" + str(count) + ".pdf"
+                                        arts_url += "/static/documents/" + str(document.id) + "/art" + str(
+                                            count) + ".pdf"
                                         count = count + 1
                                     update_art_url(document.id, arts_url)
                                     art_uploaded = True
@@ -180,7 +179,8 @@ if len(articles) > 0:
                             print "Portal document inserted"
 
                     else:
-                        print "Article not inserted. An identical article is found at id = " + str(check_if_exists[0].id)
+                        print "Article not inserted. An identical article is found at id = " + str(
+                            check_if_exists[0].id)
                         print "Updating status to 101"
                         update_candidate(candidate_id, '101')
                 else:

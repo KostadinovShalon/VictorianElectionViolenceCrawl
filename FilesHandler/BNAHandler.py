@@ -2,35 +2,21 @@ from io import BytesIO
 from FileHandler import upload_file
 import requests
 from PIL import Image
-from PyPDF2 import PdfFileWriter, PdfFileReader
+import PyPDF2
+from Crawler.utils import bna_login_details as login
 
 
 class BNAHandler:
 
-    LOGIN_PAGE = "https://www.britishnewspaperarchive.co.uk/account/login"
-
     payload = {
-        'Username': "nick.vivyan@durham.ac.uk",
-        "Password": "EV19@Nick",
-        "RememberMe": "false",
-        "NextPage": ""}
-
-    headers = {
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
-        "Accept-Encoding": "gzip, deflate, br",
-        "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
-        "Cache-Control": "max-age=0",
-        "Connection": "keep-alive",
-        "Host": "www.britishnewspaperarchive.co.uk",
-        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/64.0.3282.167 Safari/537.36",
-        "Origin": "https://www.britishnewspaperarchive.co.uk",
-        "Link": "<https://www.britishnewspaperarchive.co.uk/account/login>; rel=\"canonical\"",
-        "X-Frame-Options": "SAMEORIGIN"
-        }
+        'Username': login.username,
+        "Password": login.password,
+        "RememberMe": login.remember_me,
+        "NextPage": login.next_page}
 
     def __init__(self, item_url):
         self.s = requests.Session()
-        self.s.post(self.LOGIN_PAGE, data=self.payload, headers=self.headers)
+        self.s.post(login.login_url, data=self.payload, headers=login.headers)
         self.s.get(item_url.replace('items/', ''))
         resp = self.s.get(item_url)
         self.j = resp.json()
@@ -45,10 +31,8 @@ class BNAHandler:
     def get_dim(self):
         return int(self.searched_item['PageAreas'][0]['Width']), int(self.searched_item['PageAreas'][0]['Height'])
 
-    ## Returns False if file could not be cropped
     def download_and_upload_file(self, document_id):
         # https://www.britishnewspaperarchive.co.uk/viewer/bl/0000289/19000102/021/0002ages'][0]['UriPageOriginal']
-
         pdfs = []
         images = []
         for page in self.original_pages:
@@ -73,7 +57,6 @@ class BNAHandler:
 
     def crop_images(self, article_files, document_id):
         count = 0
-
 
         page_images = []
         page_pdfs = []
@@ -113,17 +96,19 @@ class BNAHandler:
         upload_file(document_id, pdf, "art.pdf")
         print "Cropped and saved"
 
-    def join_pdfs(self, pages):
+    @staticmethod
+    def join_pdfs(pages):
         output = BytesIO()
-        pdf_writer = PdfFileWriter()
+        pdf_writer = PyPDF2.PdfFileWriter()
         for page in pages:
-            pdf_reader = PdfFileReader(page)
+            pdf_reader = PyPDF2.PdfFileReader(page)
             pdf_writer.addPage(pdf_reader.getPage(0))
         pdf_writer.write(output)
         output.seek(0)
         return output
 
-    def paste_images(self, images):
+    @staticmethod
+    def paste_images(images):
         widths = [im.size[0] for im in images]
         heights = [im.size[1] for im in images]
         w = max(widths)

@@ -1,10 +1,12 @@
-import paramiko
+from paramiko import Transport, SFTPClient
+from Crawler.utils import server_variables as server
 
 
 def upload_file(document_id, file_to_upload, filename):
-    transport = paramiko.Transport(("coders.victorianelectionviolence.uk", 22))
-    transport.connect(username="data_feeder", password="Arp48dEx")
-    sftp = paramiko.SFTPClient.from_transport(transport)
+    # noinspection PyTypeChecker
+    transport = Transport((server.host, 22))
+    transport.connect(username=server.ftp_user, password=server.ftp_password)
+    sftp = SFTPClient.from_transport(transport)
     try:
         sftp.chdir("documents")  # Test if remote_path exists
     except IOError:
@@ -17,4 +19,3 @@ def upload_file(document_id, file_to_upload, filename):
         sftp.chdir(str(document_id))
     sftp.putfo(file_to_upload, filename)  # At this point, you are in remote_path in either case
     sftp.close()
-    #this is a comment

@@ -3,6 +3,7 @@ from FileHandler import upload_file
 import requests
 from PIL import Image
 
+
 class WNOHandler:
 
     BASE_INFO_JSON_URL = "http://newspapers.library.wales/iiif/2.0/image/"
@@ -13,7 +14,8 @@ class WNOHandler:
         "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
         "Cache-Control": "max-age=0",
         "Connection": "keep-alive",
-        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/64.0.3282.167 Safari/537.36"
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_3) AppleWebKit/537.36 (KHTML, like Gecko) "
+                      "Chrome/64.0.3282.167 Safari/537.36"
     }
 
     def __init__(self, article_url):
@@ -23,7 +25,6 @@ class WNOHandler:
         self.pageid = params[-3]
         self.info_json_url = self.BASE_INFO_JSON_URL + str(self.pageid) + "/info.json"
         self.dim_article_url = self.BASE_ARTICLES_URL + str(self.pageid)
-
 
     def get_dim(self):
         resp = self.s.get(self.info_json_url, headers=self.headers)
@@ -51,13 +52,13 @@ class WNOHandler:
         dims = self.get_dim()
         nw = dims[0] / 512
         nh = dims[1] / 512
-        N = nw * nh
+        n = nw * nh
         if nw * 512 < dims[0]:
-            N += nh
+            n += nh
         if nh * 512 < dims[1]:
-            N += nw
+            n += nw
         if nw * 512 < dims[0] and nh * 512 < dims[1]:
-            N += 1
+            n += 1
 
         im = Image.new('RGB', dims)
         count = 0
@@ -65,31 +66,31 @@ class WNOHandler:
             h_im = Image.new('RGB', (dims[0], 512))
             for j in range(nw):
                 count = count + 1
-                print "Downloading " + str(count) + "/" + str(N)
+                print "Downloading " + str(count) + "/" + str(n)
                 b_im = self.get_cropped_image(j*512, i*512)
                 n_h_im = Image.open(b_im)
                 h_im.paste(n_h_im, (j*512, 0))
             if nw * 512 < dims[0]:
                 count = count + 1
-                print "Downloading " + str(count) + "/" + str(N)
+                print "Downloading " + str(count) + "/" + str(n)
                 b_im = self.get_cropped_image(nw * 512, i * 512, w=(dims[0] - nw*512))
                 n_h_im = Image.open(b_im)
                 h_im.paste(n_h_im, (nw * 512, 0))
             im.paste(h_im, (0, i*512))
-        if nh * 512 < dims[1]:
-            h_im = Image.new('RGB', (dims[0], (dims[1] - nh * 512)))
-            for j in range(nw):
-                count = count + 1
-                print "Downloading " + str(count) + "/" + str(N)
-                b_im = self.get_cropped_image(j * 512, nh * 512, h=(dims[1] - nh * 512))
-                n_h_im = Image.open(b_im)
-                h_im.paste(n_h_im, (j * 512, 0))
-            if nw * 512 < dims[0]:
-                count = count + 1
-                print "Downloading " + str(count) + "/" + str(N)
-                b_im = self.get_cropped_image(nw * 512, i * 512, w=(dims[0] - nw * 512), h=(dims[1] - nh * 512))
-                n_h_im = Image.open(b_im)
-                h_im.paste(n_h_im, (nw * 512, 0))
+            if nh * 512 < dims[1]:
+                h_im = Image.new('RGB', (dims[0], (dims[1] - nh * 512)))
+                for j in range(nw):
+                    count = count + 1
+                    print "Downloading " + str(count) + "/" + str(n)
+                    b_im = self.get_cropped_image(j * 512, nh * 512, h=(dims[1] - nh * 512))
+                    n_h_im = Image.open(b_im)
+                    h_im.paste(n_h_im, (j * 512, 0))
+                if nw * 512 < dims[0]:
+                    count = count + 1
+                    print "Downloading " + str(count) + "/" + str(n)
+                    b_im = self.get_cropped_image(nw * 512, i * 512, w=(dims[0] - nw * 512), h=(dims[1] - nh * 512))
+                    n_h_im = Image.open(b_im)
+                    h_im.paste(n_h_im, (nw * 512, 0))
             im.paste(h_im, (0, nh * 512))
         imb = BytesIO()
         im.save(imb, 'jpeg')

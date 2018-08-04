@@ -23,3 +23,4 @@ class PageItem(scrapy.Item):
     start_date = scrapy.Field()
     end_date = scrapy.Field()
     search_id = scrapy.Field()
+
