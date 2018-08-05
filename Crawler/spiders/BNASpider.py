@@ -10,6 +10,7 @@ import csv
 from DB.databasemodels import ArchiveSearch
 import DB.dbconn
 from Crawler.utils import bna_login_details as login
+from Crawler.utils.ocr import get_ocr_bna
 from w3lib.html import remove_tags
 from string import join
 
@@ -45,23 +46,43 @@ class BNASpider(Spider):
                           search_key_words[i]['end day(xxxx-xx-xx)'] + '?basicsearch=' + search_key_words[i]['keyword']
                           + '&retrievecountrycounts=false&page=0')
 
+    def __init__(self, mode='slow', generate_json='true', *args, **kwargs):
+        super(BNASpider, self).__init__(*args, **kwargs)
+        self.fast = False
+        self.generate_json = True
+        if mode == "fast":
+            self.fast = True
+            if generate_json == 'false':
+                self.generate_json = False
+            elif generate_json != 'true':
+                raise Exception('Not supported generate_json')
+        elif mode != "slow":
+            raise Exception('Not supported mode')
+
     def start_requests(self):
-        print 'BNA Spider: Logging in\n'
-        return [scrapy.FormRequest(url=login.login_url,
-                                   headers=login.headers,
-                                   meta={
-                                       'dont_redirect': True,
-                                       'handle_httpstatus_list': [302]
-                                   },
-                                   formdata={
-                                       'Username': login.username,
-                                       'Password': login.password,
-                                       'RememberMe': login.remember_me,
-                                       'NextPage': login.next_page
-                                   },
-                                   callback=self.after_login,
-                                   dont_filter=False
-                                   )]
+        if not self.fast:
+            print 'BNA Spider: Logging in\n'
+            yield scrapy.FormRequest(url=login.login_url,
+                                     headers=login.headers,
+                                     meta={
+                                         'dont_redirect': True,
+                                         'handle_httpstatus_list': [302]
+                                     },
+                                     formdata={
+                                         'Username': login.username,
+                                         'Password': login.password,
+                                         'RememberMe': login.remember_me,
+                                         'NextPage': login.next_page
+                                     },
+                                     callback=self.after_login,
+                                     dont_filter=False)
+        else:
+            for search in self.search_db:
+                DB.dbconn.insert_search(search)
+            count = 0
+            for url in self.parse_urls:
+                yield scrapy.Request(url, meta={"keyword_count": count})
+                count = count + 1
 
     def after_login(self, response):
         cookie = ''
@@ -84,14 +105,20 @@ class BNASpider(Spider):
                 count = count + 1
 
     def parse(self, response):
-        cookie_str = response.request.headers.getlist('Cookie')[0].split(';')[0].split('session_0=')[1]
-        session_cookies = {'session_0': cookie_str}
+        session_cookies = {}
+        if not self.fast:
+            cookie_str = response.request.headers.getlist('Cookie')[0].split(';')[0].split('session_0=')[1]
+            session_cookies = {'session_0': cookie_str}
         keyword_count = response.meta['keyword_count']
         print 'BNA Spider: Crawling ', self.search_key_words[int(keyword_count)]['keyword']
 
         page = PageItem()
-        page['site'] = []
-        page['keyword'] = []
+        page['site'] = self.SITE_NAME
+        page['keyword'] = self.search_key_words[keyword_count]['keyword']
+        page['start_date'] = self.search_key_words[keyword_count]['start day(xxxx-xx-xx)']
+        page['end_date'] = self.search_key_words[keyword_count]['end day(xxxx-xx-xx)']
+        page['generate_json'] = self.generate_json
+        page['search_id'] = self.search_db[keyword_count].id
         page['titles'] = []
         page['hints'] = []
         page['descriptions'] = []
@@ -105,9 +132,6 @@ class BNASpider(Spider):
         page['download_pages'] = []
         page['download_urls'] = []
         page['ocrs'] = []
-        page['start_date'] = []
-        page['end_date'] = []
-        page['search_id'] = []
 
         all_articles = response.selector.css('article.bna-card')
         for article in all_articles:
@@ -120,11 +144,6 @@ class BNASpider(Spider):
             page['download_urls'].append(download_url)
             page['ocrs'].append(ocr)
             page['titles'].append(this_title.css('a::text').extract_first().strip())
-            page['site'].append(self.SITE_NAME)
-            page['keyword'].append(self.search_key_words[keyword_count]['keyword'])
-            page['start_date'].append(self.search_key_words[keyword_count]['start day(xxxx-xx-xx)'])
-            page['end_date'].append(self.search_key_words[keyword_count]['end day(xxxx-xx-xx)'])
-            page['search_id'].append(self.search_db[keyword_count].id)
             page['hints'].append(remove_tags(this_title.css('a::attr(title)').extract_first().strip()))
             page['descriptions'].append(join(article.css('p.bna-card__body__description::text').extract()).strip())
 
@@ -157,17 +176,10 @@ class BNASpider(Spider):
             next_page_full_url = response.urljoin(next_page)
             yield scrapy.Request(next_page_full_url, meta={"keyword_count": keyword_count}, headers=login.headers)
 
-    @staticmethod
-    def parse_details(url, cookies):
+    def parse_details(self, url, cookies):
         link = url.split('bl')[1]
-
-        ocr_link = 'https://www.britishnewspaperarchive.co.uk/tags/itemocr/BL/' + link
-        json_str = requests.get(ocr_link, cookies=cookies, headers=login.headers)
-        json_str.encoding = 'gbk'
-        json_str = json.loads(json_str.content)
         ocr_text = ''
-        for j in json_str:
-            ocr_text = ocr_text + j['LineText']
-        # print OCR_text
+        if not self.fast:
+            ocr_text = get_ocr_bna(url, cookies)
         download_url = 'https://www.britishnewspaperarchive.co.uk/viewer/download/bl' + link
         return download_url, ocr_text

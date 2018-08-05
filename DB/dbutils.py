@@ -14,17 +14,21 @@ def write_new_search_results(search_id, filename):
         full_json_path = "Crawler/Records/" + filename + ".json"
         ocr = ""
         page = 0
-        with open(full_json_path, 'rb') as json_file:
-            info = json_file.read()
-            info = info.strip()
-            info = "[" + info[:-1] + "]"
-            jarray = json.loads(info)
-            jarticle = next((row for row in jarray if row['download_url'] == search_result.url), None)
-            if jarticle is None:
-                jarticle = next((row for row in jarray if row['download_page'] == search_result.url), None)
-            if jarticle is not None:
-                ocr = jarticle["ocr"]
-                page = int(jarticle["page"])
+        try:
+            with open(full_json_path, 'rb') as json_file:
+                info = json_file.read()
+                info = info.strip()
+                info = "[" + info[:-1] + "]"
+                jarray = json.loads(info)
+                jarticle = next((row for row in jarray if row['download_url'] == search_result.url), None)
+                if jarticle is None:
+                    jarticle = next((row for row in jarray if row['download_page'] == search_result.url), None)
+                if jarticle is not None:
+                    ocr = jarticle["ocr"]
+                    page = int(jarticle["page"])
+        except:
+            if 'britishnewspaper' in search_result.url:
+                page = int(search_result.url.split('/')[-1])
         candidate_document = CandidateDocument(title=search_result.title,
                                                url=search_result.url,
                                                description=search_result.description,
@@ -44,7 +48,7 @@ def write_new_search_results(search_id, filename):
         .filter(CandidateDocument.url.in_(unique_new_results))\
         .filter(CandidateDocument.status != '0')\
         .filter(CandidateDocument.status != "1")
-    with open("Crawler/Records/pending_" + filename + ".csv", "wb") as f:
+    with open("Crawler/Records/" + filename + ".csv", "wb") as f:
         fieldnames = ['candidate id', 'url', 'title', 'description', 'status', 'doc_title']
         writer = csv.writer(f)
         writer.writerow(fieldnames)

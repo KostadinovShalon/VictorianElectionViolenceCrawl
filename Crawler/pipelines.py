@@ -41,12 +41,14 @@ class NewsPipeline(object):
     def process_item(self, page_item, spider):
 
         if spider.name == 'BNA':
-            articles_in_page_count = len(page_item['site'])
+            articles_in_page_count = len(page_item['titles'])
             if articles_in_page_count > 0:
-                site = page_item['site'][0]
-                keyword = page_item['keyword'][0]
-                start_date = page_item['start_date'][0]
-                end_date = page_item['end_date'][0]
+                site = page_item['site']
+                keyword = page_item['keyword']
+                start_date = page_item['start_date']
+                end_date = page_item['end_date']
+                generate_json = page_item['generate_json']
+                search_id = page_item['search_id']
                 filename = "{}_{}_{}_{}".format(site, keyword, start_date, end_date)
                 for i in range(articles_in_page_count):
                     title = self.extract_words_from_line_break(page_item['titles'][i])
@@ -59,7 +61,6 @@ class NewsPipeline(object):
                     word = self.extract_number_from_string(page_item['words'][i])
                     page = self.extract_number_from_string(page_item['pages'][i])
                     tag = self.extract_words_from_line_break(page_item['tags'][i])
-                    search_id = page_item['search_id'][i]
                     download_page = page_item['download_pages'][i]
                     download_url = page_item['download_urls'][i]
                     ocr = page_item['ocrs'][i]
@@ -70,10 +71,13 @@ class NewsPipeline(object):
                                                download_page=download_page, ocr=ocr, start_date=start_date,
                                                end_date=end_date, search_id=search_id)
 
-                    print 'Writting the data into the json file now..........'
-                    article_item.write_into_json_file(filename)
+                    if generate_json:
+                        print 'Writing the data into the json file'
+                        article_item.write_into_json_file(filename)
+                    else:
+                        print 'Writing the data only into database'
                     article_item.write_into_database()
-                dbutils.write_new_search_results(page_item['search_id'][0], filename)
+                dbutils.write_new_search_results(search_id, filename)
 
         elif spider.name == 'GN':
             articles_in_page_count = len(page_item['site'])
@@ -97,10 +101,11 @@ class NewsPipeline(object):
         elif spider.name == 'WNO':
             articles_in_page_count = len(page_item['site'])
             if articles_in_page_count > 0:
-                site = page_item['site'][0]
-                keyword = page_item['keyword'][0]
-                end_date = page_item['end_date'][0]
-                start_date = page_item['start_date'][0]
+                site = page_item['site']
+                keyword = page_item['keyword']
+                start_date = page_item['start_date']
+                end_date = page_item['end_date']
+                search_id = page_item['search_id']
                 filename = "{}_{}_{}_{}".format(site, keyword, start_date, end_date)
                 for i in range(articles_in_page_count):
                     title = page_item['titles'][i]
@@ -116,7 +121,6 @@ class NewsPipeline(object):
                     page = self.extract_number_from_string(page_item['pages'][i])
                     download_page = page_item['download_pages'][i]
                     ocr = self.extract_words_from_line_break(page_item['ocrs'][i])
-                    search_id = page_item['search_id'][i]
                     article_item = ArticleItem(site=site, keyword=keyword, title=title, publish=publish,
                                                description=description, type_=type_, word=words, newspaper=newspaper,
                                                page=page, download_page=download_page, search_id=search_id,

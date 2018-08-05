@@ -80,8 +80,11 @@ class WNOSpider(Spider):
 
         print SEARCH_KEY_WORD
         page = PageItem()
-        page['site'] = []
-        page['keyword'] = []
+        page['site'] = self.SITE_NAME
+        page['keyword'] = SEARCH_KEY_WORD
+        page['start_date'] = START_DATE
+        page['end_date'] = END_DATE
+        page['search_id'] = self.search_db[keyword_count].id
         page['titles'] = []
         page['descriptions'] = []
         page['publishs'] = []
@@ -91,9 +94,6 @@ class WNOSpider(Spider):
         page['pages'] = []
         page['download_pages'] = []
         page['ocrs'] = []
-        page['start_date']= []
-        page['end_date'] =[]
-        page['search_id'] = []
 
         data = response.body
         soup = BeautifulSoup(data, "html.parser", from_encoding="utf8")
@@ -102,15 +102,11 @@ class WNOSpider(Spider):
         for title_text in all_title_text:
             download_page = response.urljoin(title_text.a.get('href'))
             title = title_text.get_text()
-            page['site'].append(self.SITE_NAME)
-            page['keyword'].append(SEARCH_KEY_WORD)
+
             page['download_pages'].append(download_page)
             page['titles'].append(title)
             ocr = self.parse_detail(download_page)
             page['ocrs'].append(ocr)
-            page['start_date'].append(START_DATE)
-            page['end_date'].append(END_DATE)
-            page['search_id'].append(self.search_db[keyword_count].id)
 
             # yield scrapy.Request(url = download_page, headers = self.headers, callback = self.parse_detail, dont_filter=True)
 
