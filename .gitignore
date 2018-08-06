@@ -2,6 +2,7 @@
 
 # CSV and PYC filers
 *.csv
+!Crawler/spiders/BNA_search_input.csv
 *.pyc
 
 #IDE files
