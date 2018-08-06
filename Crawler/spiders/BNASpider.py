@@ -2,9 +2,7 @@
 from scrapy.spiders import Spider
 from bs4 import BeautifulSoup
 from Crawler.items import PageItem
-import requests
 import scrapy
-import json
 import os
 import csv
 from DB.databasemodels import ArchiveSearch
@@ -13,43 +11,30 @@ from Crawler.utils import bna_login_details as login
 from Crawler.utils.ocr import get_ocr_bna
 from w3lib.html import remove_tags
 from string import join
+from openpyxl import load_workbook
+from Crawler.utils.advanced_search import AdvancedSearch
 
 
 class BNASpider(Spider):
-
     name = "BNA"
     allowed_domains = ['britishnewspaperarchive.co.uk']
 
     search_url = 'https://www.britishnewspaperarchive.co.uk/search/results'
     SITE_NAME = 'britishnewspaperarchive'
     search_key_words = []
+    advanced_searchs = []
     SLASH = '/'
 
     filename = 'Crawler/spiders/BNA_search_input.csv'
 
-    if os.path.exists(filename):
-        print 'BNA Spider: Reading BNA input file\n'
-        with open(filename, 'rb') as csv_file:
-            reader = csv.DictReader(csv_file)
-            search_key_words = [row for row in reader]
-    else:
-        print 'BNA Spider: ' + filename + ' was not found. Check if it exists.'
-
     parse_urls = []
     search_db = []
-    for i in range(len(search_key_words)):
-        search_db.append(ArchiveSearch(archive="britishnewspaperarchive", search_text=search_key_words[i]['keyword'],
-                                       archive_date_start=search_key_words[i]['start day(xxxx-xx-xx)'],
-                                       archive_date_end=search_key_words[i]['end day(xxxx-xx-xx)'],
-                                       search_batch_id="BNA"))
-        parse_urls.append(search_url + SLASH + search_key_words[i]['start day(xxxx-xx-xx)'] + SLASH +
-                          search_key_words[i]['end day(xxxx-xx-xx)'] + '?basicsearch=' + search_key_words[i]['keyword']
-                          + '&retrievecountrycounts=false&page=0')
 
-    def __init__(self, mode='slow', generate_json='true', *args, **kwargs):
+    def __init__(self, mode='slow', generate_json='true', search='basic', *args, **kwargs):
         super(BNASpider, self).__init__(*args, **kwargs)
         self.fast = False
         self.generate_json = True
+        self.advanced = False
         if mode == "fast":
             self.fast = True
             if generate_json == 'false':
@@ -58,6 +43,51 @@ class BNASpider(Spider):
                 raise Exception('Not supported generate_json')
         elif mode != "slow":
             raise Exception('Not supported mode')
+        if search == 'advanced':
+            self.advanced = True
+        elif search != 'basic':
+            raise Exception('Search mode can only be either advanced or basic')
+
+        if self.advanced:
+            wb = load_workbook(filename='Crawler/spiders/BNA_advanced_search.xlsx', read_only=True)
+            ws = wb['Search']
+            for row in list(ws.rows)[1:]:
+                empty = True
+                for j in range(0, 3):
+                    if row[j].value is not None:
+                        empty = False
+                        break
+                if not empty:
+                    advanced_search = AdvancedSearch(row)
+                    self.advanced_searchs.append(advanced_search)
+                    self.parse_urls.append(advanced_search.get_url())
+                    fd = advanced_search.fromdate
+                    td = advanced_search.todate
+                    self.search_db.append(
+                        ArchiveSearch(archive="britishnewspaperarchive",
+                                      search_text=advanced_search.get_basic_search_string(),
+                                      archive_date_start=fd.strftime('%Y-%m-%d') if fd is not None else '',
+                                      archive_date_end=td.strftime('%Y-%m-%d') if td is not None else '',
+                                      search_batch_id="BNA"))
+                    print advanced_search.get_url()
+            wb.close()
+        else:
+            if os.path.exists(self.filename):
+                print 'BNA Spider: Reading BNA input file\n'
+                with open(self.filename, 'rb') as csv_file:
+                    reader = csv.DictReader(csv_file)
+                    self.search_key_words = [row for row in reader]
+            else:
+                print 'BNA Spider: ' + self.filename + ' was not found. Check if it exists.'
+            for i in range(len(self.search_key_words)):
+                self.search_db.append(
+                    ArchiveSearch(archive="britishnewspaperarchive", search_text=self.search_key_words[i]['keyword'],
+                                  archive_date_start=self.search_key_words[i]['start day(xxxx-xx-xx)'],
+                                  archive_date_end=self.search_key_words[i]['end day(xxxx-xx-xx)'],
+                                  search_batch_id="BNA"))
+                self.parse_urls.append(self.search_url + '/' + self.search_key_words[i]['start day(xxxx-xx-xx)'] + '/' +
+                                       self.search_key_words[i]['end day(xxxx-xx-xx)'] + '?basicsearch=' +
+                                       self.search_key_words[i]['keyword'] + '&retrievecountrycounts=false&page=0')
 
     def start_requests(self):
         if not self.fast:
@@ -110,13 +140,22 @@ class BNASpider(Spider):
             cookie_str = response.request.headers.getlist('Cookie')[0].split(';')[0].split('session_0=')[1]
             session_cookies = {'session_0': cookie_str}
         keyword_count = response.meta['keyword_count']
-        print 'BNA Spider: Crawling ', self.search_key_words[int(keyword_count)]['keyword']
-
         page = PageItem()
+        if self.advanced:
+            print 'BNA Spider: Crawling ', self.advanced_searchs[keyword_count].get_basic_search_string()
+            page['keyword'] = self.advanced_searchs[keyword_count].get_search_input()
+            start_date = self.advanced_searchs[keyword_count].fromdate
+            end_date = self.advanced_searchs[keyword_count].todate
+            page['start_date'] = start_date.strftime('%Y-%m-%d') if start_date is not None else ''
+            page['end_date'] = end_date.strftime('%Y-%m-%d') if end_date is not None else ''
+        else:
+            print 'BNA Spider: Crawling ', self.search_key_words[keyword_count]['keyword']
+            page['keyword'] = self.search_key_words[keyword_count]['keyword']
+            page['start_date'] = self.search_key_words[keyword_count]['start day(xxxx-xx-xx)']
+            page['end_date'] = self.search_key_words[keyword_count]['end day(xxxx-xx-xx)']
+
         page['site'] = self.SITE_NAME
-        page['keyword'] = self.search_key_words[keyword_count]['keyword']
-        page['start_date'] = self.search_key_words[keyword_count]['start day(xxxx-xx-xx)']
-        page['end_date'] = self.search_key_words[keyword_count]['end day(xxxx-xx-xx)']
+
         page['generate_json'] = self.generate_json
         page['search_id'] = self.search_db[keyword_count].id
         page['titles'] = []
