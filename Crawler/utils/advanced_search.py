@@ -38,14 +38,14 @@ class AdvancedSearch:
         base = 'https://www.britishnewspaperarchive.co.uk/search/results'
         query_params = {}
         if self.fromdate is not None:
-            base += '/' + self.fromdate.strftime('%Y-%m-%d')
+            base += '/' + self.fromdate
             if self.todate is not None:
-                base += '/' + self.todate.strftime('%Y-%m-%d')
+                base += '/' + self.todate
             base += '?'
         else:
             base += '?'
             if self.todate is not None:
-                query_params['dateto'] = self.todate.strftime('%Y-%m-%d')
+                query_params['dateto'] = self.todate
         query_params['basicsearch'] = self.get_basic_search_string()
         if self.all_words is not None:
             query_params['freesearch'] = self.all_words.strip()
@@ -65,9 +65,9 @@ class AdvancedSearch:
         if self.newspaper_title is not None:
             query_params['newspapertitle'] = self.newspaper_title
         if self.fromaddeddate is not None:
-            query_params['dateaddedfrom'] = self.fromaddeddate.strftime('%Y-%m-%d')
+            query_params['dateaddedfrom'] = self.fromaddeddate
         if self.toaddeddate is not None:
-            query_params['dateaddedto'] = self.toaddeddate.strftime('%Y-%m-%d')
+            query_params['dateaddedto'] = self.toaddeddate
         if self.article_type is not None:
             query_params['contenttype'] = self.article_type
         if self.front_page is not None:
@@ -95,7 +95,7 @@ class AdvancedSearch:
         if self.exclude_words is not None:
             basic_input += 'ew-' + self.exclude_words + '_'
         if self.fromdate is not None:
-            basic_input += 'fd-' + self.fromdate.strftime('%Y-%m-%d')
+            basic_input += 'fd-' + self.fromdate
         if self.todate is not None:
-            basic_input += 'td-' + self.todate.strftime('%Y-%m-%d')
+            basic_input += 'td-' + self.todate
         return basic_input.strip()

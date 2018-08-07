@@ -2,7 +2,7 @@
 The aim of this project is to crawl news from [British Newspaper Archive](https://www.britishnewspaperarchive.co.uk/) and [Welsh Newspapers Online](http://newspapers.library.wales/) sites.
 
 ## Version
-The current version of the project is **v1.28.1**
+The current version of the project is **v1.28.2**. The change history can be seen in the [Change Log](/changelog.md)
 
 ## Requirements
 This project is developed and maintained using Python 2.7. A list of requirements can be found [here](/requirements.txt). 
@@ -49,16 +49,16 @@ To activate *advanced* mode, you have to set the option (see below). Search term
   * Description: the newspaper which published the news
   * Comment: if no dropdown list appears, you can go to the *Newspapers* tab and copy one newspaper
 * **From date**
-  * Type: date in *yyyy-mm-dd* format
+  * Type: date text in *yyyy-mm-dd* format
   * Description: the start date to look for news
 * **To date**
-  * Type: date in *yyyy-mm-dd* format
+  * Type: date text in *yyyy-mm-dd* format
   * Description: the end date to look for news
 * **From date added**
-  * Type: date in *yyyy-mm-dd* format
+  * Type: date text in *yyyy-mm-dd* format
   * Description: the start date where the news was added to the system
 * **To date added**
-  * Type: date in *yyyy-mm-dd* format
+  * Type: date text in *yyyy-mm-dd* format
   * Description: the end date where the news was added to the system
 * **Article type**
   * Type: text (you have to choose from *Advertisement, Article, FamilyNotice, Illustrated* or *Miscellaneous*)
@@ -84,10 +84,10 @@ When crawling the BNA site, you can define some options as arguments in the cons
   * Values: slow (default) | fast
   * Description: when mode is slow, OCRs are downloaded. To achieve this, the system must login into the BNA site, and sometimes this may slowdown the project. When mode is fast, the OCRs are omitted (thus, no login is required).
 * **generate_json**
-  * Values: true (default) | false
-  * Description: when this option is true, a json file is generated at Crawler/Records. If it is set to false, no json file is generated and search results are only stored at the database. **This value is only considered when mode is set to fast**
+  * Values: false (default) | true
+  * Description: when this option is true, a json file is generated at Crawler/Records. If it is set to false, no json file is generated and search results are only stored at the database.
 
-An example of a crawl with advanced search, fast mode and no json generation is obtained by typing `scrapy crawl BNA -a search=advanced -a mode=fast -a generate_json=false`
+An example of a crawl with advanced search, fast mode and json generation is obtained by typing `scrapy crawl BNA -a search=advanced -a mode=fast -a generate_json=true`
 
 #### WNO
 To crawl on the WNO site, search terms are defined in [Crawler/spiders/BNA_search_input.csv](/Crawler/spiders/WNO_search_input.csv). The format is the following
@@ -100,7 +100,7 @@ Victorian | 1800 | 1810
 Currently, WNO site has no options.
 
 #### Results
-Results are stored in a json file on Crawler/Records (except if you are crawling the BNA with generate_json=false). Candidate documents with status different from 1 or 0 are downloaded in a csv file (a csv and a json file is generated for each row on the search input files). The name of these files are constructed as *site_keyword_startdate_enddate.csv*. For example, *britishnewspaperarchive_Violence_1800-01-05_1800-01-06.csv*
+If generate_json is set to true, results are stored in a json file on Crawler/Records (except if you are crawling the BNA with generate_json=false). Candidate documents with status different from 1 or 0 are downloaded in a csv file (a csv and a json file is generated for each row on the search input files). The name of these files are constructed as *site_keyword_startdate_enddate.csv*. For example, *britishnewspaperarchive_Violence_1800-01-05_1800-01-06.csv*
 
 ### Download Candidates
 After a crawling, you will have to download the documents you are interested. Before executing the script to download these documents, you have to select which candidate documents you need. For this, go to the csv file generated on Crawler/Records. In the Status field, you have to type one of the following: __0__ if you want to discard the document, __1__ if you want to download it or __2+__ if you want to see it later.
