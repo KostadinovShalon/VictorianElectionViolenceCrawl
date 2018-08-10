@@ -3,7 +3,7 @@ from FileHandler import upload_file
 import requests
 from PIL import Image
 import PyPDF2
-from Crawler.utils import bna_login_details as login
+from Crawler.utils import bna_login_utils as login
 
 
 class BNAHandler:

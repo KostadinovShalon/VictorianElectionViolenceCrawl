@@ -1,5 +1,5 @@
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy import Column, Integer, String, DateTime, Date, ForeignKey
+from sqlalchemy import Column, Integer, String, DateTime, Date, ForeignKey, Boolean
 
 Base = declarative_base()
 
@@ -12,6 +12,18 @@ class ArchiveSearch(Base):
     archive_date_start = Column(String(100))
     archive_date_end = Column(String(100))
     search_batch_id = Column(String(30))
+    added_date_end = Column(DateTime(6))
+    added_date_start = Column(DateTime(6))
+    article_type = Column(String(30))
+    exact_phrase = Column(String(1000))
+    exact_search = Column(Boolean)
+    exclude_words = Column(String(1000))
+    front_page = Column(Boolean)
+    newspaper_title = Column(String(100))
+    publication_place = Column(String(100))
+    search_all_words = Column(String(1000))
+    sort_by = Column(String(30))
+    tags = Column(String(1000))
     timestamp = Column(DateTime(6))
 
     def __repr__(self):
@@ -53,10 +65,6 @@ class CandidateDocument(Base):
     word_count = Column(Integer)
     ocr = Column(String)
 
-    def __repr__(self):
-        return "<Search Result (title = '%s', type = '%s', date = '%s')>" % (
-            self.title, self.type, self.publication_date)
-
 
 class PortalDocument(Base):
     __tablename__ = 'portal_document'
@@ -77,7 +85,3 @@ class PortalDocument(Base):
     url = Column(String(1000))
     word_count = Column(Integer)
     page = 0
-
-    def __repr__(self):
-        return "<Documentt (title = '%s', type = '%s', date = '%s')>" % (
-            self.title, self.type, self.publication_date)

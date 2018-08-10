@@ -7,7 +7,7 @@ import os
 import csv
 from DB.databasemodels import ArchiveSearch
 import DB.dbconn
-from Crawler.utils import bna_login_details as login
+from Crawler.utils import bna_login_utils as login
 from Crawler.utils.ocr import get_ocr_bna
 from w3lib.html import remove_tags
 from string import join
@@ -68,7 +68,18 @@ class BNASpider(Spider):
                                       search_text=advanced_search.get_basic_search_string(),
                                       archive_date_start=fd if fd is not None else '',
                                       archive_date_end=td if td is not None else '',
-                                      search_batch_id="BNA"))
+                                      search_batch_id="BNA", added_date_start=advanced_search.fromaddeddate,
+                                      added_date_end=advanced_search.toaddeddate,
+                                      article_type=advanced_search.article_type,
+                                      exact_phrase=advanced_search.exact_phrase,
+                                      exact_search=advanced_search.exact_search,
+                                      exclude_words=advanced_search.exclude_words,
+                                      front_page=advanced_search.front_page,
+                                      newspaper_title=advanced_search.newspaper_title,
+                                      publication_place=advanced_search.place,
+                                      search_all_words=advanced_search.all_words,
+                                      sort_by=advanced_search.sort,
+                                      tags=advanced_search.tags))
                     print advanced_search.get_url()
             wb.close()
         else:

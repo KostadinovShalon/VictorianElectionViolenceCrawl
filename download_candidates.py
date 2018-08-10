@@ -110,6 +110,7 @@ if len(articles) > 0:
 
                 if len(article_title) > 100:
                     article_title = article_title[:99]
+                article_title = article_title.decode('latin-1').encode('latin-1', 'ignore')
                 if jarticle is not None:
                     description_article = jarticle['description']
                     ocr = jarticle['ocr'].encode('latin-1', 'ignore')
@@ -138,7 +139,7 @@ if len(articles) > 0:
                                               publication_date=publication_date,
                                               publication_location=county,
                                               publication_title=newspaper,
-                                              title=article_title.encode('latin-1', 'ignore'),
+                                              title=article_title,
                                               type=type_,
                                               url=download_page, word_count=words)
 

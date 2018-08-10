@@ -5,6 +5,13 @@ All notable changes since version 1.28.1 will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [1.28.3] - 2017-08-10
+### Added
+- Advanced search parameters are stored in the database
+
+### Fixed
+- Some candidate documents could not be uploaded into the database because their 'article_title' field
+
 ## [1.28.2] - 2017-08-07
 ### Changed
 - Dates from the advanced search xlsx file are now formatted as text (date must use the format yyyy-mm-dd)

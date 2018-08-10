@@ -1,5 +1,5 @@
 import requests
-from Crawler.utils import bna_login_details as login
+from Crawler.utils import bna_login_utils as login
 import json
 
 
