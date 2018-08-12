@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
-
+import random
+from scrapy.conf import settings
 # Define here the models for your spider middleware
 #
 # See documentation in:
@@ -101,3 +102,10 @@ class CrawlerDownloaderMiddleware(object):
 
     def spider_opened(self, spider):
         spider.logger.info('Spider opened: %s' % spider.name)
+
+
+class RandomUserAgentMiddleware(object):
+    def process_request(self, request, spider):
+        ua  = random.choice(settings.get('USER_AGENT_LIST'))
+        if ua:
+            request.headers.setdefault('User-Agent', ua)

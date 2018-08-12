@@ -1,14 +1,15 @@
 # -*- coding: utf-8 -*-
 import re
 import json
-from DB.databasemodels import ArchiveSearchResult
-from DB import dbconn, dbutils
+from Crawler.utils.databasemodels import ArchiveSearchResult
+from Crawler.utils import dbconn
 import datetime
 
 # Define your item pipelines here
 #
 # Don't forget to add your pipeline to the ITEM_PIPELINES setting
 # See: https://doc.scrapy.org/en/latest/topics/item-pipeline.html
+from Crawler.utils.dbutils import session_scope
 
 
 class NewsPipeline(object):
@@ -65,7 +66,7 @@ class NewsPipeline(object):
                     download_url = page_item['download_urls'][i]
                     ocr = page_item['ocrs'][i]
 
-                    article_item = ArticleItem(site=site, keyword=keyword, title=title, description=description,
+                    article_item = ArticleItem(site=site, title=title, description=description,
                                                hint=hint, publish=publish, newspaper=newspaper, county=county,
                                                type_=type_, word=word, page=page, tag=tag, download_url=download_url,
                                                download_page=download_page, ocr=ocr, start_date=start_date,
@@ -77,7 +78,6 @@ class NewsPipeline(object):
                     else:
                         print 'Writing the data only into database'
                     article_item.write_into_database()
-                dbutils.write_new_search_results(search_id, filename)
 
         elif spider.name == 'GN':
             articles_in_page_count = len(page_item['site'])
@@ -92,7 +92,7 @@ class NewsPipeline(object):
                 newspaper = page_item['newspapers'][i]
                 download_page = page_item['download_pages'][i]
 
-                article_item = ArticleItem(site=site, keyword=keyword, reprint=reprint, title=title, publish=publish,
+                article_item = ArticleItem(site=site, reprint=reprint, title=title, publish=publish,
                                            county=county, word=word, newspaper=newspaper, download_page=download_page)
                 print 'Writting the data into the json file now..........'
                 filename = site
@@ -121,7 +121,7 @@ class NewsPipeline(object):
                     page = self.extract_number_from_string(page_item['pages'][i])
                     download_page = page_item['download_pages'][i]
                     ocr = self.extract_words_from_line_break(page_item['ocrs'][i])
-                    article_item = ArticleItem(site=site, keyword=keyword, title=title, publish=publish,
+                    article_item = ArticleItem(site=site, title=title, publish=publish,
                                                description=description, type_=type_, word=words, newspaper=newspaper,
                                                page=page, download_page=download_page, search_id=search_id,
                                                download_url=download_page, ocr=ocr, start_date=start_date,
@@ -131,16 +131,13 @@ class NewsPipeline(object):
                     article_item.write_into_json_file(filename)
                     article_item.write_into_database(site='WNO')
 
-                dbutils.write_new_search_results(page_item['search_id'][0], filename)
-
 
 class ArticleItem:
 
-    def __init__(self, title=None, keyword=None, description=None, hint=None, publish=None, newspaper=None,
+    def __init__(self, title=None, description=None, hint=None, publish=None, newspaper=None,
                  county=None, type_=None, word=None, page=None, tag=None, site=None, reprint=None, download_page=None,
                  download_url=None, ocr=None, start_date=None, end_date=None, search_id=None):
         self.title = title
-        self.keyword = keyword
         self.description = description
         self.hint = hint
         self.publish = publish
@@ -185,4 +182,5 @@ class ArticleItem:
                                             publication_date=publication_date,
                                             word_count=self.word,
                                             page=self.page)
-        dbconn.insert(search_result)
+        with session_scope() as session:
+            dbconn.insert(session, search_result)

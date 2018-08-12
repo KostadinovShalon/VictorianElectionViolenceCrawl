@@ -1,5 +1,5 @@
-from DB import dbconn
-from DB.databasemodels import PortalDocument
+from Crawler.utils import dbconn
+from Crawler.utils.databasemodels import PortalDocument
 from FilesHandler.BNAHandler import BNAHandler
 
 documents = dbconn.session.query(PortalDocument.id, PortalDocument.url).\

@@ -1,7 +1,6 @@
 from bs4 import BeautifulSoup
-from DB import dbconn
-from DB.databasemodels import CandidateDocument
-from Crawler.utils import bna_login_utils as login
+from Crawler.utils.databasemodels import CandidateDocument
+from Crawler.utils import bna_login_utils as login, dbconn
 from Crawler.utils.ocr import get_ocr_bna
 import requests
 from sqlalchemy import or_

@@ -1,34 +1,26 @@
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 from datetime import datetime
-from DB import databasemodels
-from DB.databasemodels import CandidateDocument, PortalDocument
-
-engine = create_engine('mysql+mysqldb://data_feeder:Arp48dEx@coders.victorianelectionviolence.uk/evp')
-databasemodels.Base.metadata.create_all(engine)
-Session = sessionmaker(bind=engine)
-session = Session()
+from Crawler.utils.databasemodels import CandidateDocument, PortalDocument
 
 
-def insert_search(archive_search):
+def insert_search(session, archive_search):
     archive_search.timestamp = datetime.now()
     session.add(archive_search)
     session.commit()
 
 
-def insert(archive_to_insert):
+def insert(session, archive_to_insert):
     session.add(archive_to_insert)
     session.commit()
 
 
-def update_candidate(candidate_id, status):
+def update_candidate(session, candidate_id, status):
     session.query(CandidateDocument). \
         filter(CandidateDocument.id == candidate_id). \
         update(values={"status": status})
     session.commit()
 
 
-def update_page_url(document_id, page_url):
+def update_page_url(session, document_id, page_url):
     try:
         session.query(PortalDocument). \
             filter(PortalDocument.id == document_id). \
@@ -38,7 +30,7 @@ def update_page_url(document_id, page_url):
         session.rollback()
 
 
-def update_art_url(document_id, pdf_url):
+def update_art_url(session, document_id, pdf_url):
     session.query(PortalDocument). \
         filter(PortalDocument.id == document_id). \
         update(values={"pdf_location": pdf_url})

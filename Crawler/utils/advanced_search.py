@@ -34,18 +34,23 @@ class AdvancedSearch:
                 basic_search += '-' + word + ' '
         return basic_search.strip()
 
-    def get_url(self):
+    def get_url(self, from_date=None, to_date=None):
         base = 'https://www.britishnewspaperarchive.co.uk/search/results'
         query_params = {}
-        if self.fromdate is not None:
-            base += '/' + self.fromdate
-            if self.todate is not None:
-                base += '/' + self.todate
+        if from_date is not None and to_date is not None:
+            base += '/' + from_date
+            base += '/' + to_date
             base += '?'
         else:
-            base += '?'
-            if self.todate is not None:
-                query_params['dateto'] = self.todate
+            if self.fromdate is not None:
+                base += '/' + self.fromdate
+                if self.todate is not None:
+                    base += '/' + self.todate
+                base += '?'
+            else:
+                base += '?'
+                if self.todate is not None:
+                    query_params['dateto'] = self.todate
         query_params['basicsearch'] = self.get_basic_search_string()
         if self.all_words is not None:
             query_params['freesearch'] = self.all_words.strip()

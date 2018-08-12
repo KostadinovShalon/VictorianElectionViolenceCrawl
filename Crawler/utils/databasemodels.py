@@ -1,7 +1,5 @@
-from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import Column, Integer, String, DateTime, Date, ForeignKey, Boolean
-
-Base = declarative_base()
+from Crawler import Base
 
 
 class ArchiveSearch(Base):

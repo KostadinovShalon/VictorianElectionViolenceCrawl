@@ -2,7 +2,7 @@
 from scrapy.spiders import Spider
 from bs4 import BeautifulSoup
 
-import DB.dbconn
+import Crawler.utils.dbconn
 from Crawler.items import PageItem
 import re
 import scrapy
@@ -12,7 +12,8 @@ import os
 import csv
 import urllib
 
-from DB.databasemodels import ArchiveSearch
+from Crawler.utils.databasemodels import ArchiveSearch
+from Crawler.utils.dbutils import session_scope
 
 
 class WNOSpider(Spider):
@@ -63,7 +64,8 @@ class WNOSpider(Spider):
 
     def start_requests(self):
         for search in self.search_db:
-            DB.dbconn.insert_search(search)
+            with session_scope() as session:
+                Crawler.utils.dbconn.insert_search(session, search)
         count = 0
         for url in self.urls:
             yield scrapy.Request(url, meta={"keyword_count": count}, callback=self.parse)

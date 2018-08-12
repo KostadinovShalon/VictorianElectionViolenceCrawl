@@ -1,14 +1,13 @@
 import sys
 import os
 sys.path.append(os.path.abspath('..'))
-from DB.dbconn import update_page_url, update_art_url
+from Crawler.utils.dbconn import update_page_url, update_art_url
 from FilesHandler.BNAHandler import BNAHandler
 from FilesHandler.WNOHandler import WNOHandler
-from DB import dbconn
-from DB.databasemodels import PortalDocument
+from Crawler.utils.databasemodels import PortalDocument
 import csv
 import requests
-from Crawler.utils import bna_login_utils as login
+from Crawler.utils import bna_login_utils as login, dbconn
 import sys, traceback
 
 nargs = len(sys.argv)

@@ -1,11 +1,11 @@
 import csv
 import json
-from DB import dbconn
-from DB.dbconn import update_candidate, insert, update_art_url, update_page_url
+from Crawler.utils import dbconn
+from Crawler.utils.dbconn import update_candidate, insert, update_art_url, update_page_url
 from FilesHandler.BNAHandler import BNAHandler
 from FilesHandler.WNOHandler import WNOHandler
 from FilesHandler.FileHandler import upload_file
-from DB.databasemodels import PortalDocument, CandidateDocument
+from Crawler.utils.databasemodels import PortalDocument, CandidateDocument
 import datetime
 import os.path
 from Crawler.utils.ocr import get_ocr_bna
