@@ -29,10 +29,13 @@ def update_candidate(candidate_id, status):
 
 
 def update_page_url(document_id, page_url):
-    session.query(PortalDocument). \
-        filter(PortalDocument.id == document_id). \
-        update(values={"pdf_page_location": page_url})
-    session.commit()
+    try:
+        session.query(PortalDocument). \
+            filter(PortalDocument.id == document_id). \
+            update(values={"pdf_page_location": page_url})
+        session.commit()
+    except:
+        session.rollback()
 
 
 def update_art_url(document_id, pdf_url):

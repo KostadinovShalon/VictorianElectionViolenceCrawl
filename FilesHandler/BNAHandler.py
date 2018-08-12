@@ -4,19 +4,23 @@ import requests
 from PIL import Image
 import PyPDF2
 from Crawler.utils import bna_login_utils as login
+import os
 
 
 class BNAHandler:
-
     payload = {
         'Username': login.username,
         "Password": login.password,
         "RememberMe": login.remember_me,
         "NextPage": login.next_page}
 
-    def __init__(self, item_url):
-        self.s = requests.Session()
-        self.s.post(login.login_url, data=self.payload, headers=login.headers)
+    def __init__(self, item_url, session=None, slow=False):
+        self.slow = slow
+        if session is None:
+            self.s = requests.Session()
+            self.s.post(login.login_url, data=self.payload, headers=login.headers)
+        else:
+            self.s = session
         self.s.get(item_url.replace('items/', ''))
         resp = self.s.get(item_url)
         self.j = resp.json()
@@ -27,6 +31,7 @@ class BNAHandler:
             url = image['UriPageOriginal']
             if url not in self.original_pages:
                 self.original_pages.append(url)
+        resp.close()
 
     def get_dim(self):
         return int(self.searched_item['PageAreas'][0]['Width']), int(self.searched_item['PageAreas'][0]['Height'])
@@ -35,20 +40,28 @@ class BNAHandler:
         # https://www.britishnewspaperarchive.co.uk/viewer/bl/0000289/19000102/021/0002ages'][0]['UriPageOriginal']
         pdfs = []
         images = []
+        page_count = 1
         for page in self.original_pages:
-            f = self.s.get(page)
+            print 'Downloading page ', page_count
+            f = self.s.get(page, headers={'User-Agent': 'Mozilla/5.0'})
+            print 'Page ', page_count, ' downloaded'
             tmp = BytesIO(f.content)
             tmp.seek(0)
+            f.close()
             im = Image.open(tmp)
             images.append({'identifier': page, 'image': im})
-            tmppdf = BytesIO()
-            im.save(tmppdf, 'PDF', resolution=100.0)
-            tmppdf.seek(0)
-            pdfs.append(tmppdf)
+            im.save("./temp" + str(page_count) + ".pdf", 'PDF', resolution=100.0)
+            print 'Page ', page_count, ' temporally saved'
+            pdfs.append("temp" + str(page_count) + ".pdf")
+            page_count = page_count + 1
+            tmp.close()
+        page_pdf = self.join_pdfs(pdfs, 'temp2upload.pdf')
 
-        page_pdf = self.join_pdfs(pdfs)
-
+        print 'Uploading page pdf'
         upload_file(document_id, page_pdf, "page.pdf")
+        os.remove('temp2upload.pdf')
+        for page in pdfs:
+            os.remove(page)
         if not (self.searched_item['PageAreas'][0]['Width'].isdigit()
                 and self.searched_item['PageAreas'][0]['Height'].isdigit()):
             return False
@@ -61,7 +74,7 @@ class BNAHandler:
         page_images = []
         page_pdfs = []
         for art in article_files:
-            page_images.append((art['identifier'], []))
+            page_images.append((art['identifier'], [], []))
 
         # cropped = Image.new('RGB', self.get_dim())
         for page_area in self.searched_item['PageAreas']:
@@ -73,52 +86,70 @@ class BNAHandler:
                 yb = int(page_area['YBottomLeft']) * article_file['image'].size[1] / self.get_dim()[1]
                 xt = int(page_area['XTopRight']) * article_file['image'].size[0] / self.get_dim()[0]
                 yt = int(page_area['YTopRight']) * article_file['image'].size[1] / self.get_dim()[1]
-                im = article_file['image'].crop((xb, yb, xt, yt))
+
                 for page_image in page_images:
                     if page_image[0] is article_file['identifier']:
-                        page_image[1].append(im)
+                        if self.slow:
+                            article_file['image'].crop((xb, yb, xt, yt)).save("cropped" + str(count) + ".png", 'PNG',
+                                                                              resolution=100.0)
+                            page_image[1].append("cropped" + str(count) + ".png")
+                        else:
+                            im = article_file['image'].crop((xb, yb, xt, yt))
+                            page_image[1].append(im)
+                        page_image[2].append((xb, yb, xt, yt))
                         break
                 count = count + 1
 
+        page_item_count = 1
         for page_image in page_images:
-            heights = [im.size[1] for im in page_image[1]]
-            if sum(heights) > 65000:
-                first = page_image[1][:len(page_image[1])/2]
-                second = page_image[1][len(page_image[1])/2:]
-                tmp1 = self.paste_images(first)
-                tmp2 = self.paste_images(second)
-                page_pdfs.append(tmp1)
-                page_pdfs.append(tmp2)
-            else:
-                tmp = self.paste_images(page_image[1])
-                page_pdfs.append(tmp)
-        pdf = self.join_pdfs(page_pdfs)
+            min_x = 0
+            min_y = 0
+            max_x = 0
+            max_y = 0
+            for coordinates in page_image[2]:
+                if min_x == 0 or coordinates[0] < min_x:
+                    min_x = coordinates[0]
+                if min_y == 0 or coordinates[1] < min_y:
+                    min_y = coordinates[1]
+                if coordinates[2] > max_x:
+                    max_x = coordinates[2]
+                if coordinates[3] > max_y:
+                    max_y = coordinates[3]
+            tmp = self.paste_images(page_image[1], page_image[2], (min_x, min_y, max_x, max_y), page_item_count)
+            page_item_count = page_item_count + 1
+            page_pdfs.append(tmp)
+        pdf = self.join_pdfs(page_pdfs, 'temp2upload.pdf')
         upload_file(document_id, pdf, "art.pdf")
+        os.remove('temp2upload.pdf')
+        for page in page_pdfs:
+            os.remove(page)
+        if self.slow:
+            for page_image in page_images:
+                for page in page_image[1]:
+                    os.remove(page)
         print "Cropped and saved"
 
     @staticmethod
-    def join_pdfs(pages):
-        output = BytesIO()
-        pdf_writer = PyPDF2.PdfFileWriter()
+    def join_pdfs(pages, name):
+        merger = PyPDF2.PdfFileMerger()
         for page in pages:
-            pdf_reader = PyPDF2.PdfFileReader(page)
-            pdf_writer.addPage(pdf_reader.getPage(0))
-        pdf_writer.write(output)
-        output.seek(0)
-        return output
+            merger.append(page)
+        with open(name, 'wb') as temp2upload:
+            merger.write(temp2upload)
+        merger.close()
+        return name
 
-    @staticmethod
-    def paste_images(images):
-        widths = [im.size[0] for im in images]
-        heights = [im.size[1] for im in images]
-        w = max(widths)
-        cropped = Image.new('RGB', (w, sum(heights)))
-        last_height = 0
+    def paste_images(self, images, coordinates, limits, count):
+        w = limits[2] - limits[0]
+        h = limits[3] - limits[1]
+        cropped = Image.new('RGB', (w, h))
         for i in range(len(images)):
-            x = (w - widths[i]) / 2
-            cropped.paste(images[i], (x, last_height))
-            last_height += heights[i]
-        tmp = BytesIO()
-        cropped.save(tmp, 'PDF', resolution=100.0)
-        tmp.seek(0)
-        return tmp
+            x = coordinates[i][0] - limits[0]
+            y = coordinates[i][1] - limits[1]
+            if self.slow:
+                cropped.paste(Image.open(images[i]), (x, y))
+            else:
+                cropped.paste(images[i], (x, y))
+        cropped.save("temp" + str(count) + ".pdf", 'PDF', resolution=100.0)
+        cropped.close()
+        return "temp" + str(count) + ".pdf"
