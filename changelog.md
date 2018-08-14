@@ -5,6 +5,10 @@ All notable changes since version 1.28.1 will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [1.29.1] - 2018-08-14
+### Fixed
+- When portal document files failed to be uploaded to the server, their candidate status was not updated.
+
 ## [1.29.0] - 2018-08-12
 ### Added
 - A generate_candidates.py script was added to get candidate documents after a crawl
