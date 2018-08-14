@@ -147,11 +147,13 @@ with session_scope() as session:
                             try:
                                 item_url = article_url.replace("download", "items")
                                 handler = BNAHandler(item_url)
-                                print "Downloading article"
                                 if document.ocr is None or document.ocr == '':
                                     ocr = get_ocr_bna(download_page, session=handler.s)
                                     document.ocr = ocr.encode('latin-1', 'ignore')
                                 insert(session, document)
+                                update_candidate(session, candidate_id, str(article_status))
+                                print "Candidate document status updated"
+                                print "Downloading article"
                                 handler.download_and_upload_file(document.id)
                                 print "Article downloaded and uploaded to the server"
                                 file_processed = True
@@ -163,6 +165,8 @@ with session_scope() as session:
                             try:
                                 handler = WNOHandler(article_url)
                                 insert(session, document)
+                                update_candidate(session, candidate_id, str(article_status))
+                                print "Candidate document status updated"
                                 print "Downloading article"
                                 if high_resolution:
                                     handler.download_and_upload_high_resolution_image(document.id)
@@ -219,8 +223,6 @@ with session_scope() as session:
                                 update_art_url(session, document.id, '/static/documents/' +
                                                str(document.id) + "/art.pdf")
                             print "Portal document inserted"
-                            update_candidate(session, candidate_id, str(article_status))
-                            print "Candidate document status updated"
 
                     else:
                         print "Article not inserted. An identical article is found at id = " + str(
