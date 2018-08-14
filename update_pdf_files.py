@@ -4,10 +4,10 @@ import os
 from Crawler.utils.dbutils import session_scope
 
 sys.path.append(os.path.abspath('..'))
-from Crawler.utils.dbconn import update_page_url, update_art_url
+from Crawler.utils.dbconn import update_page_url, update_art_url, update_candidate
 from FilesHandler.BNAHandler import BNAHandler
 from FilesHandler.WNOHandler import WNOHandler
-from Crawler.utils.databasemodels import PortalDocument
+from Crawler.utils.databasemodels import PortalDocument, CandidateDocument
 import csv
 import requests
 from Crawler.utils import bna_login_utils as login
@@ -58,6 +58,8 @@ with session_scope() as session:
                             update_art_url(session, id_, '/static/documents/' + str(id_) + "/art.jpg")
                         else:
                             update_art_url(session, id_, '/static/documents/' + str(id_) + "/page.jpg")
+                        cd = session.query(CandidateDocument.id).filter(CandidateDocument.url == row[1]).first()
+                        update_candidate(session, cd.id, 1)
                         print "Article downloaded and uploaded to the server"
                     elif 'newspapers.library.wales' in row[1]:
                         handler = WNOHandler(row[1])
