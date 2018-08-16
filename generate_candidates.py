@@ -45,7 +45,7 @@ if os.path.exists('search_ids.csv'):
                                                            publication_location=search_result.publication_location,
                                                            type=search_result.type,
                                                            publication_date=search_result.publication_date,
-                                                           status="",
+                                                           status="", g_status="", status_writer="gary",
                                                            word_count=search_result.word_count,
                                                            page=page,
                                                            ocr=ocr.encode('latin-1', 'ignore'))
