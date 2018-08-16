@@ -53,12 +53,14 @@ if os.path.exists('search_ids.csv'):
 
                 needing_coding = session.query(CandidateDocument.id, CandidateDocument.url, CandidateDocument.title,
                                                CandidateDocument.description, CandidateDocument.status,
-                                               CandidateDocument.title) \
+                                               CandidateDocument.g_status, CandidateDocument.title,
+                                               CandidateDocument.status_writer) \
                     .filter(CandidateDocument.url.in_(unique_new_results)) \
                     .filter(CandidateDocument.status != '0') \
                     .filter(CandidateDocument.status != "1")
                 with open("Crawler/Records/" + filename + ".csv", "wb") as f:
-                    fieldnames = ['candidate id', 'url', 'title', 'description', 'status', 'doc_title']
+                    fieldnames = ['id', 'url', 'publication_title', 'description', 'status',
+                                  'g_status', 'title', 'status_writer']
                     writer = csv.writer(f)
                     writer.writerow(fieldnames)
                     writer.writerows(needing_coding)

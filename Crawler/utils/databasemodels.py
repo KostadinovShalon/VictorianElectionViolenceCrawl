@@ -62,6 +62,8 @@ class CandidateDocument(Base):
     publication_date = Column(Date)
     word_count = Column(Integer)
     ocr = Column(String)
+    g_status = Column(String(30))
+    status_writer = Column(String(30))
 
 
 class PortalDocument(Base):

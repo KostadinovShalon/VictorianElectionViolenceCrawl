@@ -45,7 +45,7 @@ with session_scope() as session:
                     try:
                         status = int(row[4])
                         if status is not None:
-                            articles.append((row[0], row[1], row[2], status, row[5]))
+                            articles.append((row[0], row[1], row[2], status, row[5], row[6], row[7]))
                     except ValueError:
                         pass
 
@@ -67,7 +67,9 @@ with session_scope() as session:
             article_url = article[1]
             article_title = article[2]
             article_status = article[3]
-            article_doc_title = article[4]
+            g_status = article[4]
+            article_doc_title = article[5]
+            status_writer = article[6]
             print "Processing " + article_doc_title + "(" + article_title + ")"
 
             jarticle = None
@@ -151,7 +153,7 @@ with session_scope() as session:
                                     ocr = get_ocr_bna(download_page, session=handler.s)
                                     document.ocr = ocr.encode('latin-1', 'ignore')
                                 insert(session, document)
-                                update_candidate(session, candidate_id, str(article_status))
+                                update_candidate(session, candidate_id, str(article_status), g_status, status_writer)
                                 print "Candidate document status updated"
                                 print "Downloading article"
                                 handler.download_and_upload_file(document.id)
@@ -165,7 +167,7 @@ with session_scope() as session:
                             try:
                                 handler = WNOHandler(article_url)
                                 insert(session, document)
-                                update_candidate(session, candidate_id, str(article_status))
+                                update_candidate(session, candidate_id, str(article_status), g_status, status_writer)
                                 print "Candidate document status updated"
                                 print "Downloading article"
                                 if high_resolution:
@@ -228,9 +230,9 @@ with session_scope() as session:
                         print "Article not inserted. An identical article is found at id = " + str(
                             check_if_exists[0].id)
                         print "Updating status to 101"
-                        update_candidate(session, candidate_id, '101')
+                        update_candidate(session, candidate_id, '101', g_status, status_writer)
                 else:
-                    update_candidate(session, candidate_id, str(article_status))
+                    update_candidate(session, candidate_id, str(article_status), g_status, status_writer)
                     print "Candidate document status updated"
             else:
                 print "Article not found in " + full_json_path + " or in database"

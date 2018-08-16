@@ -42,12 +42,13 @@ class BNAHandler:
         images = []
         page_count = 1
         for page in self.original_pages:
-            print 'Downloading page ', page_count
-            f = self.s.get(page, headers={'User-Agent': 'Mozilla/5.0'})
+            print 'Downloading page ', page_count, page
+            f = self.s.get(page, headers={'User-Agent': "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_3) "
+                                                        "AppleWebKit/537.36 (KHTML, like Gecko) "
+                                                        "Chrome/64.0.3282.167 Safari/537.36"})
             print 'Page ', page_count, ' downloaded'
             tmp = BytesIO(f.content)
             tmp.seek(0)
-            f.close()
             im = Image.open(tmp)
             images.append({'identifier': page, 'image': im})
             im.save("./temp" + str(page_count) + ".pdf", 'PDF', resolution=100.0)
@@ -55,6 +56,7 @@ class BNAHandler:
             pdfs.append("temp" + str(page_count) + ".pdf")
             page_count = page_count + 1
             tmp.close()
+            f.close()
         page_pdf = self.join_pdfs(pdfs, 'temp2upload.pdf')
 
         print 'Uploading page pdf'

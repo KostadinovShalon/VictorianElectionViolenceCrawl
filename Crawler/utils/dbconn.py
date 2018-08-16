@@ -13,10 +13,10 @@ def insert(session, archive_to_insert):
     session.commit()
 
 
-def update_candidate(session, candidate_id, status):
+def update_candidate(session, candidate_id, status, g_status, status_writer):
     session.query(CandidateDocument). \
         filter(CandidateDocument.id == candidate_id). \
-        update(values={"status": status})
+        update(values={"status": status, "g_status": g_status, "status_writer": status_writer})
     session.commit()
 
 
