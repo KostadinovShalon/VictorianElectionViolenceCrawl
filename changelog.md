@@ -5,8 +5,12 @@ All notable changes since version 1.28.1 will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
-## [1.29.3] - 2018-08-16
 
+## [1.29.4] - 2018-08-17
+### Changed
+- Candidate documents are created when doing the crawl. Script generate_candidates only generates the CSV.
+
+## [1.29.3] - 2018-08-16
 ### Changed
 - Default values for g_status and status_writer are status and 'gary'.
 ### Fixed

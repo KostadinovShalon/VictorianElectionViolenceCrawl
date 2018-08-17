@@ -41,7 +41,6 @@ class ArchiveSearchResult(Base):
     archive_search_id = Column(Integer, ForeignKey('portal_archivesearch.id'))
     publication_date = Column(Date)
     word_count = Column(Integer)
-    page = 0
 
     def __repr__(self):
         return "<Search Result (title = '%s', type = '%s', date = '%s')>" % (

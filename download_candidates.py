@@ -70,7 +70,7 @@ with session_scope() as session:
             g_status = article[4]
             article_doc_title = article[5]
             status_writer = article[6]
-            if g_status is None:
+            if g_status is None or g_status == "":
                 g_status = article_status
             if status_writer is None:
                 status_writer = 'gary'

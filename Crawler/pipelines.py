@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import re
 import json
-from Crawler.utils.databasemodels import ArchiveSearchResult
+from Crawler.utils.databasemodels import ArchiveSearchResult, CandidateDocument
 from Crawler.utils import dbconn
 import datetime
 
@@ -73,11 +73,12 @@ class NewsPipeline(object):
                                                end_date=end_date, search_id=search_id)
 
                     if generate_json:
-                        print 'Writing the data into the json file'
+                        print 'Writing data into the json file'
                         article_item.write_into_json_file(filename)
                     else:
-                        print 'Writing the data only into database'
-                    article_item.write_into_database()
+                        print 'Writing data only into database'
+                        filename = None
+                    article_item.write_into_database(filename=filename)
 
         elif spider.name == 'GN':
             articles_in_page_count = len(page_item['site'])
@@ -161,7 +162,7 @@ class ArticleItem:
             json.dump(self.__dict__, f)
             f.write(',\n')
 
-    def write_into_database(self, site='BNA'):
+    def write_into_database(self, site='BNA', filename=None):
         publication_date = self.publish
         if site == 'BNA':
             publication_date = datetime.datetime.strptime(self.publish, "%A %d %B %Y")
@@ -180,7 +181,40 @@ class ArticleItem:
                                             type=self.type_.encode('latin-1', 'ignore'),
                                             archive_search_id=self.search_id,
                                             publication_date=publication_date,
-                                            word_count=self.word,
-                                            page=self.page)
+                                            word_count=self.word)
         with session_scope() as session:
             dbconn.insert(session, search_result)
+            unique_result = session.query(CandidateDocument.id)\
+                .filter(CandidateDocument.url == search_result.url).first()
+            if unique_result is None:
+                ocr = ""
+                page = 0
+                try:
+                    full_json_path = "Crawler/Records/" + filename + ".json"
+                    with open(full_json_path, 'rb') as json_file:
+                        info = json_file.read()
+                        info = info.strip()
+                        info = "[" + info[:-1] + "]"
+                        jarray = json.loads(info)
+                        jarticle = next((row for row in jarray if row['download_url'] == search_result.url), None)
+                        if jarticle is None:
+                            jarticle = next((row for row in jarray if row['download_page'] == search_result.url),
+                                            None)
+                        if jarticle is not None:
+                            ocr = jarticle["ocr"]
+                            page = int(jarticle["page"])
+                except:
+                    if 'britishnewspaper' in search_result.url:
+                        page = int(search_result.url.split('/')[-1])
+                candidate_document = CandidateDocument(title=search_result.title,
+                                                       url=search_result.url,
+                                                       description=search_result.description,
+                                                       publication_title=search_result.publication_title,
+                                                       publication_location=search_result.publication_location,
+                                                       type=search_result.type,
+                                                       publication_date=search_result.publication_date,
+                                                       status="", g_status="", status_writer="gary",
+                                                       word_count=search_result.word_count,
+                                                       page=page,
+                                                       ocr=ocr.encode('latin-1', 'ignore'))
+                dbconn.insert(session, candidate_document)
