@@ -145,7 +145,6 @@ with session_scope() as session:
                                                   publication_date=publication_date,
                                                   publication_location=county,
                                                   publication_title=newspaper,
-                                                  title=article_title,
                                                   type=type_,
                                                   url=download_page, word_count=words)
 

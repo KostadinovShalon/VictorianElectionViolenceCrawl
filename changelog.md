@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 
+## [1.29.5] - 2018-09-18
+### Changed
+- Field *title* from PortalDocument is now not used.
+
 ## [1.29.4] - 2018-08-17
 ### Changed
 - Candidate documents are created when doing the crawl. Script generate_candidates only generates the CSV.

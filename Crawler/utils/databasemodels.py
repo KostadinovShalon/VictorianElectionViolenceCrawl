@@ -79,7 +79,6 @@ class PortalDocument(Base):
     publication_date = Column(Date)
     publication_location = Column(String(100))
     publication_title = Column(String(1000))
-    title = Column(String(1000))
     type = Column(String(30))
     url = Column(String(1000))
     word_count = Column(Integer)

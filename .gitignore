@@ -14,3 +14,5 @@
 
 #Local Records
 Crawler/Records/*
+
+*.sql
