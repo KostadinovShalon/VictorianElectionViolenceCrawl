@@ -1,5 +1,6 @@
 # See http://help.github.com/ignore-files/ for more about ignoring files.
-
+#Login details
+Crawler/utils/bna_login_details.py
 # CSV and PYC filers
 *.csv
 !search_ids.csv
@@ -18,4 +19,3 @@ Crawler/Records/*
 *.sql
 *.docx
 
-Crawler/utils/bna_login_details.py
