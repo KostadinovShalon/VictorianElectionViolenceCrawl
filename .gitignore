@@ -17,3 +17,5 @@ Crawler/Records/*
 
 *.sql
 *.docx
+
+Crawler/utils/bna_login_details.py
