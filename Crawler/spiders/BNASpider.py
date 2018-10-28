@@ -40,24 +40,46 @@ class BNASpider(Spider):
             self.generate_json = False
             self.advanced = False
             self.url_count = 0
-            if mode == "fast":
-                self.fast = True
-            elif mode != "slow":
-                raise Exception('Not supported mode')
-            if generate_json == 'true':
-                self.generate_json = True
-            elif generate_json != 'false':
-                raise Exception('Not supported generate_json value')
-            if search == 'advanced':
-                self.advanced = True
-            elif search != 'basic':
-                raise Exception('Search mode can only be either advanced or basic')
+            self.recovery = False
+            self.start_from_row = 0
+            self.recovery_search_id = 0
+            self.recover_url = None
+            if mode == "recovery":
+                self.recovery = True
+                with open('recovery', 'r') as recovery_file:
+                    lines = recovery_file.read().splitlines()
+                    print lines
+                    self.start_from_row = int(lines[0])
+                    self.recovery_search_id = int(lines[1])
+                    self.fast = lines[2] == "True"
+                    if self.fast:
+                        self.mode = "fast"
+                    else:
+                        self.mode = "slow"
+                    self.generate_json = lines[3] == "True"
+                    self.advanced = lines[4] == "True"
+                    print self.advanced
+                    self.recover_url = lines[5]
+            else:
+                if mode == "fast":
+                    self.fast = True
+                elif mode != "slow":
+                    raise Exception('Not supported mode')
+                if generate_json == 'true':
+                    self.generate_json = True
+                elif generate_json != 'false':
+                    raise Exception('Not supported generate_json value')
+                if search == 'advanced':
+                    self.advanced = True
+                elif search != 'basic':
+                    raise Exception('Search mode can only be either advanced or basic')
 
             if self.advanced:
                 wb = load_workbook(filename='Crawler/spiders/BNA_advanced_search.xlsx', read_only=True)
                 ws = wb['Search']
                 count = 0
-                for row in list(ws.rows)[1:]:
+                first = True
+                for row in list(ws.rows)[self.start_from_row + 1:]:
                     empty = True
                     for j in range(0, 3):
                         if row[j].value is not None:
@@ -68,7 +90,11 @@ class BNASpider(Spider):
                         td = advanced_search.todate
                         fd = advanced_search.fromdate
                         self.advanced_searchs.append(advanced_search)
-                        self.parse_urls.append((advanced_search.get_url(), count))
+                        if self.recovery and first:
+                            self.parse_urls.append((self.recover_url, count))
+                            first = False
+                        else:
+                            self.parse_urls.append((advanced_search.get_url(), count))
                         count = count + 1
                         self.search_db.append(
                             ArchiveSearch(archive="britishnewspaperarchive",
@@ -95,23 +121,35 @@ class BNASpider(Spider):
                     with open(self.filename, 'rb') as csv_file:
                         reader = csv.DictReader(csv_file)
                         self.search_key_words = [row for row in reader]
+                    print self.search_key_words
                 else:
                     print 'BNA Spider: ' + self.filename + ' was not found. Check if it exists.'
                 count = 0
+                print "start from row", self.start_from_row
                 for i in range(len(self.search_key_words)):
+                    if self.recovery:
+                        if i < self.start_from_row:
+                            continue
                     self.search_db.append(
                         ArchiveSearch(archive="britishnewspaperarchive",
                                       search_text=self.search_key_words[i]['keyword'],
                                       archive_date_start=self.search_key_words[i]['start day(xxxx-xx-xx)'],
                                       archive_date_end=self.search_key_words[i]['end day(xxxx-xx-xx)'],
                                       search_batch_id="BNA"))
-                    self.parse_urls.append((self.search_url + '/' + self.search_key_words[i]['start day(xxxx-xx-xx)'] +
-                                            '/' + self.search_key_words[i]['end day(xxxx-xx-xx)'] +
-                                            '?basicsearch=' + self.search_key_words[i]['keyword'] +
-                                            '&retrievecountrycounts=false&page=0', count))
+                    if self.recovery and i == self.start_from_row:
+                        self.parse_urls.append((self.recover_url, count))
+                    else:
+                        self.parse_urls.append((self.search_url + '/' + self.search_key_words[i]['start day(xxxx-xx-xx)'] +
+                                                '/' + self.search_key_words[i]['end day(xxxx-xx-xx)'] +
+                                                '?basicsearch=' + self.search_key_words[i]['keyword'] +
+                                                '&retrievecountrycounts=false&page=0', count))
                     count = count + 1
+                self.search_key_words = self.search_key_words[self.start_from_row:]
+                print self.parse_urls
 
         def start_requests(self):
+            if not self.recovery:
+                self.initialize_search_file()
             if not self.fast:
                 print 'BNA Spider: Logging in\n'
                 yield scrapy.FormRequest(url=login.login_url,
@@ -129,9 +167,9 @@ class BNASpider(Spider):
                                          callback=self.after_login,
                                          dont_filter=False)
             else:
-                for search in self.search_db:
-                    dbconn.insert_search(self.session, search)
-                self.write_searchs()
+                # for search in self.search_db:
+                #     dbconn.insert_search(self.session, search)
+                # self.write_searchs()
                 for url in self.parse_urls:
                     yield scrapy.Request(url[0], meta={"keyword_count": url[1]})
 
@@ -147,9 +185,9 @@ class BNASpider(Spider):
                 print 'BNA Spider: Problem trying to logging in (Cookie not found)\n'
             else:
                 print 'BNA Spider: Successful login. \n'
-                for search in self.search_db:
-                    dbconn.insert_search(self.session, search)
-                self.write_searchs()
+                # for search in self.search_db:
+                #     dbconn.insert_search(self.session, search)
+                # self.write_searchs()
                 for url in self.parse_urls:
                     yield scrapy.Request(url[0], meta={"keyword_count": url[1]}, cookies=session_cookies)
 
@@ -174,9 +212,25 @@ class BNASpider(Spider):
                 page['end_date'] = self.search_key_words[keyword_count]['end day(xxxx-xx-xx)']
 
             page['site'] = self.SITE_NAME
+            search_id = self.search_db[keyword_count].id
+            if search_id == 0 or search_id is None:
+                avoid_appending = False
+                if keyword_count == 0 and self.recovery:
+                    search_id = self.recovery_search_id
+                    avoid_appending = True
+                else:
+                    dbconn.insert_search(self.session, self.search_db[keyword_count])
+                    search_id = self.search_db[keyword_count].id
+                if not avoid_appending:
+                    if self.advanced:
+                        self.write_search(self.search_db[keyword_count],
+                                          self.advanced_searchs[keyword_count])
+                    else:
+                        self.write_search(self.search_db[keyword_count],
+                                          self.search_key_words[keyword_count])
 
             page['generate_json'] = self.generate_json
-            page['search_id'] = self.search_db[keyword_count].id
+            page['search_id'] = search_id
             page['titles'] = []
             page['hints'] = []
             page['descriptions'] = []
@@ -232,6 +286,7 @@ class BNASpider(Spider):
             next_page = response.selector.css('a[title="Forward one page"]::attr(href)').extract_first()
             if next_page is not None:
                 next_page_full_url = response.urljoin(next_page)
+                self.create_recovery_file(search_id, next_page_full_url, keyword_count)
                 yield scrapy.Request(next_page_full_url, meta={"keyword_count": keyword_count}, headers=login.headers)
 
         def parse_details(self, url, cookies):
@@ -241,6 +296,30 @@ class BNASpider(Spider):
                 ocr_text = get_ocr_bna(url, cookies)
             download_url = 'https://www.britishnewspaperarchive.co.uk/viewer/download/bl' + link
             return download_url, ocr_text
+
+        def initialize_search_file(self):
+            with open('search_ids.csv', 'w') as search_file:
+                writer = csv.writer(search_file)
+                writer.writerow(['id', 'filename'])
+
+        def write_search(self, search, search_identifier):
+            with open('search_ids.csv', 'a+') as search_file:
+                writer = csv.writer(search_file)
+                s_id = search.id
+                if s_id is None and self.recovery:
+                    s_id = self.recovery_search_id
+                site = search.archive
+                if self.advanced:
+                    advanced_search = search_identifier
+                    kw = advanced_search.get_search_input()
+                    start_date = advanced_search.fromdate
+                    end_date = advanced_search.todate
+                    writer.writerow([s_id, "{}_{}_{}_{}".format(site, kw, start_date, end_date)])
+                else:
+                    kw = search_identifier['keyword']
+                    start_date = search_identifier['start day(xxxx-xx-xx)']
+                    end_date = search_identifier['end day(xxxx-xx-xx)']
+                    writer.writerow([s_id, "{}_{}_{}_{}".format(site, kw, start_date, end_date)])
 
         def write_searchs(self):
             with open('search_ids.csv', 'wb') as search_file:
@@ -261,3 +340,14 @@ class BNASpider(Spider):
                         start_date = self.search_key_words[i]['start day(xxxx-xx-xx)']
                         end_date = self.search_key_words[i]['end day(xxxx-xx-xx)']
                         writer.writerow([s_id, "{}_{}_{}_{}".format(site, kw, start_date, end_date)])
+
+        def create_recovery_file(self, last_search, next_page, row):
+            with open('recovery', 'w+') as page_err:
+                values = [str(row + self.start_from_row),
+                          str(last_search),
+                          str(self.fast),
+                          str(self.generate_json),
+                          str(self.advanced),
+                          next_page]
+                separator = '\n'
+                page_err.write(separator.join(values))

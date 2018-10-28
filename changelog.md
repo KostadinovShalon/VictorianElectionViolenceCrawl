@@ -5,6 +5,14 @@ All notable changes since version 1.28.1 will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [1.30.0] - 2018-10-26
+### Changed
+- Searchs are inserted in the database after performing the first search. In previous versions, 
+searchs were inserted into the database at the beginning of the spider, at the same time.
+
+### Added
+- **Recovery mode**. A new mode to continue crawling in the last page crawled by the spider. This
+avoids having to crawl again pages already processed.   
 
 ## [1.29.5] - 2018-09-18
 ### Changed

@@ -2,7 +2,7 @@
 The aim of this project is to crawl news from [British Newspaper Archive](https://www.britishnewspaperarchive.co.uk/) and [Welsh Newspapers Online](http://newspapers.library.wales/) sites.
 
 ## Version
-The current version of the project is **v1.29.5**. The change history can be seen in the [Change Log](/changelog.md)
+The current version of the project is **v1.30.0**. The change history can be seen in the [Change Log](/changelog.md)
 
 ## Requirements
 This project is developed and maintained using Python 2.7. A list of requirements can be found [here](/requirements.txt). 
@@ -87,13 +87,24 @@ When crawling the BNA site, you can define some options as arguments in the cons
   * Values: basic (default) | advanced
   * Description: sets the search mode.
 * **mode**
-  * Values: slow (default) | fast
-  * Description: when mode is slow, OCRs are downloaded. To achieve this, the system must login into the BNA site, and sometimes this may slowdown the project. When mode is fast, the OCRs are omitted (thus, no login is required).
+  * Values: slow (default) | fast | recovery *(new)*
+  * Description: when mode is slow, OCRs are downloaded. To achieve this, the system must login into the BNA site, 
+  and sometimes this may slowdown the project. When mode is fast, the OCRs are omitted (thus, no login is required).
+  Recovery mode continues the search after a failed crawling (see *Recovery mode* section).
 * **generate_json**
   * Values: false (default) | true
   * Description: when this option is true, a json file is generated at Crawler/Records. If it is set to false, no json file is generated and search results are only stored at the database.
 
 An example of a crawl with advanced search, fast mode and json generation is obtained by typing `scrapy crawl BNA -a search=advanced -a mode=fast -a generate_json=true`
+
+##### Recovery mode
+After crawling a page, a **recovery** file is generated. This file contains the information
+about the search inputs and the next page to be crawled, so it can be used if an error arises during
+the crawling process. To use this recovery file, define the search mode as recovery (`-a mode=recovery`). It will use
+the configurations from the last search, including the search type and mode, and it will run from the 
+last page crawled (so, it is possible that some search results will be duplicated). 
+**Note**: recovery mode must be used AFTER the failed crawled. If a search is performed after the failed
+crawl, the recovery file will be overwritten with the new search.
 
 #### WNO
 To crawl on the WNO site, search terms are defined in [Crawler/spiders/BNA_search_input.csv](/Crawler/spiders/WNO_search_input.csv). The format is the following
