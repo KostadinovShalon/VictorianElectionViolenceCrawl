@@ -5,6 +5,10 @@ All notable changes since version 1.28.1 will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [1.30.1] - 2018-11-22
+### Fixed
+- OCR was not being uploaded to the DB for new Candidate Documents
+
 ## [1.30.0] - 2018-10-26
 ### Changed
 - Searchs are inserted in the database after performing the first search. In previous versions, 

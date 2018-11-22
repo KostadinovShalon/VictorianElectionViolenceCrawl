@@ -16,6 +16,7 @@ Crawler/utils/bna_login_details.py
 #Local Records
 Crawler/Records/*
 
+
 *.sql
 *.docx
 

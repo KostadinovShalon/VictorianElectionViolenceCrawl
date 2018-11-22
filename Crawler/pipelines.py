@@ -206,6 +206,7 @@ class ArticleItem:
                 except:
                     if 'britishnewspaper' in search_result.url:
                         page = int(search_result.url.split('/')[-1])
+                        ocr = self.ocr
                 candidate_document = CandidateDocument(title=search_result.title,
                                                        url=search_result.url,
                                                        description=search_result.description,
