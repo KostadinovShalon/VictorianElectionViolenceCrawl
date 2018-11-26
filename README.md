@@ -2,7 +2,7 @@
 The aim of this project is to crawl news from [British Newspaper Archive](https://www.britishnewspaperarchive.co.uk/) and [Welsh Newspapers Online](http://newspapers.library.wales/) sites.
 
 ## Version
-The current version of the project is **v1.30.1**. The change history can be seen in the [Change Log](/changelog.md)
+The current version of the project is **v1.30.2**. The change history can be seen in the [Change Log](/changelog.md)
 
 ## Requirements
 This project is developed and maintained using Python 2.7. A list of requirements can be found [here](/requirements.txt). 
@@ -151,7 +151,22 @@ Sometimes, an article PDF is too big to be downloaded with the current algorithm
 because it has been only needed on portal document 1281. Thus, if you see a MemoryError after using this script in its normal mode, try with this *slow* option.
 
 ### OCR updater
-When the advanced mode for the BNA is used, the OCR of the candidates are not downloaded. If you want to download the OCR of those candidate documents with a blank OCR, type `python ocr_updater.py` on the root folder
+This tool provides an option to get the OCR info from some **candidate documents** pre-selected
+by the user.
+A file is needed to use this function. This must be a CSV file with the following characteristics:
+   - The first row is not used (column names should be in the first row).
+   - The first field from each row must be the candidate id number
+   - Other fields after the id are allowed, but they will not be used
+
+Record files (those with candidates, created after running generate_candidates.py) are a good example
+of a document with the previous characteristics.
+
+To use this function type `python ocr_updater.py` in the root folder. The script will prompt the user
+to input the filename. This filename must be relative to the root folder, so if the file is
+in Crawler/Records, the filename must be introduced as *Crawler/Records/the_name_of_the_file* (**with no extension**).
+
+Only previously blank OCRs are updated.
+
 
 ## Contact
 If you have any doubt or experience any problem, contact me (Brian Isaac - brian.k.isaac-medina@durham.ac.uk) 
