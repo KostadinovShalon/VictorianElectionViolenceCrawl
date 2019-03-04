@@ -27,6 +27,7 @@ class BNASpider(Spider):
         SITE_NAME = 'britishnewspaperarchive'
         SLASH = '/'
         searchs = []
+        n_search = 0
 
         filename = 'Crawler/spiders/BNA_search_input.csv'
 
@@ -237,6 +238,7 @@ class BNASpider(Spider):
                 if self.recovery:
                     print "Start from row ", self.start_from_row
                 print 'SEARCHES: '
+                first = True
                 for i in range(len(search_keywords)):
                     if self.recovery:
                         if i < self.start_from_row:
@@ -248,13 +250,16 @@ class BNASpider(Spider):
                     search_dates = self.split_dates(fd_date, td_date)
                     date_pairs = list(search_dates)
                     date_partition = self.rec_date_partition
+
                     for date_pair in date_pairs[date_partition + 1:]:
+                        date_partition += 1
                         dfd = '%04d-%02d-%02d' % (date_pair[0].year, date_pair[0].month, date_pair[0].day)
                         dtd = '%04d-%02d-%02d' % (date_pair[1].year, date_pair[1].month, date_pair[1].day)
-                        url = self.recover_url if self.recovery else (self.search_url + '/' + dfd + '/' + dtd +
-                                                                      '?basicsearch=' +
-                                                                      search_keywords[i]['keyword'] +
-                                                                      '&retrievecountrycounts=false&page=0')
+                        url = self.recover_url if self.recovery and first else (self.search_url + '/' + dfd + '/' +
+                                                                                dtd + '?basicsearch=' +
+                                                                                search_keywords[i]['keyword'] +
+                                                                                '&retrievecountrycounts=false&page=0')
+                        first = False
                         if not self.counting:
                             archive_search = ArchiveSearch(archive="britishnewspaperarchive",
                                                            search_text=search_keywords[i]['keyword'],
@@ -272,7 +277,6 @@ class BNASpider(Spider):
                                                  date_partition=date_partition,
                                                  search_db=archive_search,
                                                  advanced_search=None))
-                        date_partition += 1
                         print ' - ', url
                     count += 1
                     self.rec_date_partition = -1
@@ -302,8 +306,7 @@ class BNASpider(Spider):
                                              callback=self.after_login,
                                              dont_filter=False)
                 else:
-                    for search in self.searchs:
-                        yield scrapy.Request(search["url"], meta={"search": search})
+                    yield scrapy.Request(self.searchs[0]["url"], meta={"search": self.searchs[0]})
 
         def after_login(self, response):
             cookie = None
@@ -316,9 +319,8 @@ class BNASpider(Spider):
                 print 'BNA Spider: Problem trying to logging in (Cookie not found)'
             else:
                 print 'BNA Spider: Successful login. \n'
-                for search in self.searchs:
-                    yield scrapy.Request(search["url"], meta={"search": search},
-                                         cookies=session_cookies)
+                yield scrapy.Request(self.searchs[0]["url"], meta={"search": self.searchs[0]},
+                                     cookies=session_cookies)
 
         def count_callback(self, response):
             search = response.meta['search']
@@ -344,26 +346,17 @@ class BNASpider(Spider):
             search = response.meta['search']
             advanced_search = search["advanced_search"]
             archive_search = search["search_db"]
-            page = PageItem()
             if self.advanced:
                 print 'Crawling page %d - "%s [%s - %s]"' % (self.page_count,
                                                              advanced_search.get_basic_search_string(),
                                                              advanced_search.fromdate,
                                                              advanced_search.todate)
-                page['keyword'] = advanced_search.get_search_input()
-                start_date = advanced_search.fromdate
-                end_date = advanced_search.todate
-                page['start_date'] = start_date if start_date is not None else ''
-                page['end_date'] = end_date if end_date is not None else ''
             else:
                 print 'Crawling page %d - "%s [%s - %s]"' % (self.page_count,
                                                              archive_search.search_text,
                                                              archive_search.archive_date_start,
                                                              archive_search.archive_date_end)
-                page['keyword'] = archive_search.search_text
-                page['start_date'] = archive_search.archive_date_start
-                page['end_date'] = archive_search.archive_date_end
-            page['site'] = self.SITE_NAME
+
             search_id = archive_search.id
             if search_id == 0 or search_id is None:
                 avoid_appending = False
@@ -377,59 +370,57 @@ class BNASpider(Spider):
                 if not avoid_appending:
                     self.write_search(archive_search, advanced_search)
 
-            page['generate_json'] = self.generate_json
-            page['search_id'] = search_id
-            page['titles'] = []
-            page['hints'] = []
-            page['descriptions'] = []
-            page['publishs'] = []
-            page['counties'] = []
-            page['types'] = []
-            page['words'] = []
-            page['pages'] = []
-            page['tags'] = []
-            page['newspapers'] = []
-            page['download_pages'] = []
-            page['download_urls'] = []
-            page['ocrs'] = []
-
             all_articles = response.selector.css('article.bna-card')
             for article in all_articles:
                 # To get the title text
+                page = PageItem()
+                page['site'] = self.SITE_NAME
+                page['generate_json'] = self.generate_json
+                page['search_id'] = search_id
+                if self.advanced:
+                    page['keyword'] = advanced_search.get_search_input()
+                    start_date = advanced_search.fromdate
+                    end_date = advanced_search.todate
+                    page['start_date'] = start_date if start_date is not None else ''
+                    page['end_date'] = end_date if end_date is not None else ''
+                else:
+                    page['keyword'] = archive_search.search_text
+                    page['start_date'] = archive_search.archive_date_start
+                    page['end_date'] = archive_search.archive_date_end
                 this_title = article.css('h4.bna-card__title')
 
                 article_detail_url = response.urljoin(this_title.css('a::attr(href)').extract_first())
-                page['download_pages'].append(article_detail_url)
+                page['download_page'] = article_detail_url
                 download_url, ocr = self.parse_details(article_detail_url, cookies=session_cookies)
-                page['download_urls'].append(download_url)
-                page['ocrs'].append(ocr)
-                page['titles'].append(this_title.css('a::text').extract_first().strip())
-                page['hints'].append(remove_tags(this_title.css('a::attr(title)').extract_first().strip()))
-                page['descriptions'].append(join(article.css('p.bna-card__body__description::text').extract()).strip())
+                page['download_url'] = download_url
+                page['ocr'] = ocr
+                page['title'] = this_title.css('a::text').extract_first().strip()
+                page['hint'] = remove_tags(this_title.css('a::attr(title)').extract_first().strip())
+                page['description'] = join(article.css('p.bna-card__body__description::text').extract()).strip()
 
                 meta = BeautifulSoup(article.css('div.bna-card__meta').extract_first(), 'html.parser')
-                page['publishs'].append(meta.small.span.get_text().split("Published:")[1].strip())
+                page['publish'] = meta.small.span.get_text().split("Published:")[1].strip()
                 for item in meta.small.span.find_next_siblings("span"):
                     item_str = item.get_text().encode('utf-8')
                     if 'Newspaper' in item_str:
-                        page['newspapers'].append(item_str.split('Newspaper:\n')[1])
+                        page['newspaper'] = item_str.split('Newspaper:\n')[1]
                     elif 'County' in item_str:
                         # print item_str.split(('County:\n')[1])
-                        page['counties'].append(item_str.split('\nCounty: \r\n')[1])
+                        page['county'] = item_str.split('\nCounty: \r\n')[1]
                     elif 'Type' in item_str:
-                        page['types'].append(item_str.split('\nType:')[1])
+                        page['type'] = item_str.split('\nType:')[1]
                     elif 'Word' in item_str:
                         # print item_str.split('\nWords: \r\n')
-                        page['words'].append(item_str.split('\nWords: \r\n')[1])
+                        page['word'] = item_str.split('\nWords: \r\n')[1]
                     elif 'Page' in item_str:
                         # print item_str.split('\nPage:')
-                        page['pages'].append(item_str.split('\nPage:')[1])
+                        page['page'] = item_str.split('\nPage:')[1]
                     elif 'Tag' in item_str:
                         # print item_str.split('\nTags:\n')
-                        page['tags'].append(item_str.split('\nTags:\n')[1])
+                        page['tag'] = item_str.split('\nTags:\n')[1]
                     else:
                         print 'Error'
-            yield page
+                yield page
 
             next_page = response.selector.css('a[title="Forward one page"]::attr(href)').extract_first()
             if next_page is not None:
@@ -439,6 +430,11 @@ class BNASpider(Spider):
                 yield scrapy.Request(next_page_full_url, meta={"search": search}, headers=login.headers)
             else:
                 self.page_count = 0
+                self.n_search += 1
+                if self.n_search < len(self.searchs):
+                    yield scrapy.Request(self.searchs[self.n_search]["url"],
+                                         meta={"search": self.searchs[self.n_search]},
+                                         headers=login.headers)
 
         def parse_details(self, url, cookies):
             link = url.split('bl')[1]

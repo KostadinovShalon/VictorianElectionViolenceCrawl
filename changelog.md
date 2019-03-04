@@ -5,6 +5,21 @@ All notable changes since version 1.28.1 are documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [1.31.0] - 2019-03-04
+### Changed
+- Several changes were done in the code. These changes don't directly affect the performance, but they are useful
+maintenance
+- Spider settings: now only one concurrent item
+- PageItem class now holds information of only one article. The "yield" clause was changed to the standard use in 
+the parse function
+- Items were moved to items.py
+- In general, code was cleaned from previous developers
+
+### Added
+- **Count mode**. This mode is used to count how many articles are in a search
+- **Split option**. This options allows the user to split a search in several searches split by 
+several time intervals. This option is compatible with the recovery mode (although it is still experimental)
+
 ## [1.30.2] - 2018-11-26
 ### Changed
 - The script ocr_updater.py was modified to allow candidate id selection

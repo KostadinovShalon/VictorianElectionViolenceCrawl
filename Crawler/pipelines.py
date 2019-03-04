@@ -80,43 +80,40 @@ class NewsPipeline(object):
 
 
 def process_bna_item(page_item):
-    articles_in_page_count = len(page_item['titles'])
-    if articles_in_page_count > 0:
-        site = page_item['site']
-        keyword = page_item['keyword']
-        start_date = page_item['start_date']
-        end_date = page_item['end_date']
-        generate_json = page_item['generate_json']
-        search_id = page_item['search_id']
-        filename = "{}_{}_{}_{}".format(site, keyword, start_date, end_date)
-        for i in range(articles_in_page_count):
-            title = extract_words_from_line_break(page_item['titles'][i])
-            description = extract_words_from_line_break(page_item['descriptions'][i])
-            hint = extract_words_from_hints(page_item['hints'][i])
-            publish = page_item['publishs'][i]
-            newspaper = extract_words_from_line_break(page_item['newspapers'][i])
-            county = extract_words_from_line_break(page_item['counties'][i])
-            type_ = extract_words_from_line_break(page_item['types'][i])
-            word = extract_number_from_string(page_item['words'][i])
-            page = extract_number_from_string(page_item['pages'][i])
-            tag = extract_words_from_line_break(page_item['tags'][i])
-            download_page = page_item['download_pages'][i]
-            download_url = page_item['download_urls'][i]
-            ocr = page_item['ocrs'][i]
+    site = page_item['site']
+    keyword = page_item['keyword']
+    start_date = page_item['start_date']
+    end_date = page_item['end_date']
+    generate_json = page_item['generate_json']
+    search_id = page_item['search_id']
+    filename = "{}_{}_{}_{}".format(site, keyword, start_date, end_date)
+    title = extract_words_from_line_break(page_item['title'])
+    description = extract_words_from_line_break(page_item['description'])
+    hint = extract_words_from_hints(page_item['hint'])
+    publish = page_item['publish']
+    newspaper = extract_words_from_line_break(page_item['newspaper'])
+    county = extract_words_from_line_break(page_item['county'])
+    type_ = extract_words_from_line_break(page_item['type'])
+    word = extract_number_from_string(page_item['word'])
+    page = extract_number_from_string(page_item['page'])
+    tag = extract_words_from_line_break(page_item['tag'])
+    download_page = page_item['download_page']
+    download_url = page_item['download_url']
+    ocr = page_item['ocr']
 
-            article_item = ArticleItem(site=site, title=title, description=description,
-                                       hint=hint, publish=publish, newspaper=newspaper, county=county,
-                                       type_=type_, word=word, page=page, tag=tag, download_url=download_url,
-                                       download_page=download_page, ocr=ocr, start_date=start_date,
-                                       end_date=end_date, search_id=search_id)
+    article_item = ArticleItem(site=site, title=title, description=description,
+                               hint=hint, publish=publish, newspaper=newspaper, county=county,
+                               type_=type_, word=word, page=page, tag=tag, download_url=download_url,
+                               download_page=download_page, ocr=ocr, start_date=start_date,
+                               end_date=end_date, search_id=search_id)
 
-            if generate_json:
-                print 'Writing data into the json file'
-                article_item.write_into_json_file(filename)
-            else:
-                print 'Writing data only into database'
-                filename = None
-            write_into_database(article_item, filename=filename)
+    if generate_json:
+        print 'Writing data into the json file'
+        article_item.write_into_json_file(filename)
+    else:
+        print 'Writing data only into database'
+        filename = None
+    write_into_database(article_item, filename=filename)
 
 
 def extract_words_from_hints(hints):

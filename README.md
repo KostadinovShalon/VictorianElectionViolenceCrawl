@@ -2,7 +2,7 @@
 The aim of this project is to crawl news from [British Newspaper Archive](https://www.britishnewspaperarchive.co.uk/) and [Welsh Newspapers Online](http://newspapers.library.wales/) sites.
 
 ## Version
-The current version of the project is **v1.30.2**. The change history can be seen in the [Change Log](/changelog.md)
+The current version of the project is **v1.31.0**. The change history can be seen in the [Change Log](/changelog.md)
 
 ## Requirements
 This project is developed and maintained using Python 2.7. A list of requirements can be found [here](/requirements.txt). 
@@ -87,13 +87,23 @@ When crawling the BNA site, you can define some options as arguments in the cons
   * Values: basic (default) | advanced
   * Description: sets the search mode.
 * **mode**
-  * Values: slow (default) | fast | recovery *(new)*
+  * Values: slow (default) | fast | recovery | count *(new)*
   * Description: when mode is slow, OCRs are downloaded. To achieve this, the system must login into the BNA site, 
   and sometimes this may slowdown the project. When mode is fast, the OCRs are omitted (thus, no login is required).
-  Recovery mode continues the search after a failed crawling (see *Recovery mode* section).
+  Recovery mode continues the search after a failed crawling (see *Recovery mode* section). Count mode only counts the
+  number of articles in a particular search (see *Count mode* section).
 * **generate_json**
   * Values: false (default) | true
   * Description: when this option is true, a json file is generated at Crawler/Records. If it is set to false, no json file is generated and search results are only stored at the database.
+* **split**
+  * Values: none (default) | day | week | month | year
+  * Description: this option defines how searches will be divided in different time intervals. When *none* is selected,
+  there will be only one search corresponding to the defined stard and end dates. When another option is selected,
+  the search will be divided in several searches, each one covering a time interval defined this option. For example,
+  if the search start and end dates are 1918-01-19 and 1918-02-19, and if the split value is *week*, five searches will 
+  be processed: 1918-01-19 to 1918-01-25, 1918-01-26 to 1918-02-01, 1918-02-02 to 1918-02-08, 1918-02-09 to 1918-02-15
+  and 1918-02-16 to 1918-02-19. Although it has been tested with no problems, **this mode is not fully 
+  compatible with recovery mode yet**
 
 An example of a crawl with advanced search, fast mode and json generation is obtained by typing `scrapy crawl BNA -a search=advanced -a mode=fast -a generate_json=true`
 
@@ -105,6 +115,11 @@ the configurations from the last search, including the search type and mode, and
 last page crawled (so, it is possible that some search results will be duplicated). 
 **Note**: recovery mode must be used AFTER the failed crawled. If a search is performed after the failed
 crawl, the recovery file will be overwritten with the new search.
+
+##### Count mode
+Count mode counts the articles in a search. The result will be shown in the console and it will be 
+saved in the portal_archivesearchsummaryonly table. This mode can be used along with the split
+option.
 
 #### WNO
 To crawl on the WNO site, search terms are defined in [Crawler/spiders/BNA_search_input.csv](/Crawler/spiders/WNO_search_input.csv). The format is the following
