@@ -3,22 +3,38 @@ from urllib import urlencode
 
 class AdvancedSearch:
 
-    def __init__(self, row):
-        self.all_words = row[0].value
-        self.some_words = row[1].value
-        self.exact_phrase = row[2].value
-        self.exclude_words = row[3].value
-        self.exact_search = row[4].value
-        self.place = row[5].value
-        self.newspaper_title = row[6].value
-        self.fromdate = row[7].value
-        self.todate = row[8].value
-        self.fromaddeddate = row[9].value
-        self.toaddeddate = row[10].value
-        self.article_type = row[11].value
-        self.front_page = row[12].value
-        self.tags = row[13].value
-        self.sort = row[14].value
+    def __init__(self, all_words, some_words, exact_phrase, exclude_words, exact_search,
+                 place, newspaper_title, fromdate, todate, fromaddeddate, toaddeddate,
+                 article_type, front_page, tags, sort):
+        self.all_words = all_words
+        self.some_words = some_words
+        self.exact_phrase = exact_phrase
+        self.exclude_words = exclude_words
+        self.exact_search = exact_search
+        self.place = place
+        self.newspaper_title = newspaper_title
+        self.fromdate = fromdate
+        self.todate = todate
+        self.fromaddeddate = fromaddeddate
+        self.toaddeddate = toaddeddate
+        self.article_type = article_type
+        self.front_page = front_page
+        self.tags = tags
+        self.sort = sort
+
+    @classmethod
+    def from_row(cls, row):
+        return cls(row[0].value, row[1].value, row[2].value, row[3].value,
+                   row[4].value, row[5].value, row[6].value, row[7].value,
+                   row[8].value, row[9].value, row[10].value, row[11].value,
+                   row[12].value, row[13].value, row[14].value)
+
+    @classmethod
+    def copy_item(cls, instance):
+        return cls(instance.all_words, instance.some_words, instance.exact_phrase, instance.exclude_words,
+                   instance.exact_search, instance.place, instance.newspaper_title, instance.fromdate,
+                   instance.todate, instance.fromaddeddate, instance.toaddeddate, instance.article_type,
+                   instance.front_page, instance.tags, instance.sort)
 
     def get_basic_search_string(self):
         basic_search = ''

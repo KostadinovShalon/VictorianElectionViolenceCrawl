@@ -3,4 +3,4 @@
 # Please refer to the documentation for information on how to create and manage
 # your spiders.
 
-print 'The Spider is starting...\n\n'
+print 'Starting Spider...\n'

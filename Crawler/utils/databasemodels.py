@@ -29,6 +29,34 @@ class ArchiveSearch(Base):
             self.search_text, self.archive_date_start, self.archive_date_end)
 
 
+class ArchiveSearchCount(Base):
+    __tablename__ = 'portal_archivesearchsummaryonly'
+    id = Column(Integer, primary_key=True)
+    archive = Column(String(30))
+    search_text = Column(String(1000))
+    archive_date_start = Column(String(100))
+    archive_date_end = Column(String(100))
+    search_batch_id = Column(String(30))
+    added_date_end = Column(DateTime(6))
+    added_date_start = Column(DateTime(6))
+    article_type = Column(String(30))
+    exact_phrase = Column(String(1000))
+    exact_search = Column(Boolean)
+    exclude_words = Column(String(1000))
+    front_page = Column(Boolean)
+    newspaper_title = Column(String(100))
+    publication_place = Column(String(100))
+    search_all_words = Column(String(1000))
+    sort_by = Column(String(30))
+    tags = Column(String(1000))
+    timestamp = Column(DateTime(6))
+    results_count = Column(Integer)
+
+    def __repr__(self):
+        return "<Search (search text = '%s', start = '%s', end = '%s', count='%d')>" % (
+            self.search_text, self.archive_date_start, self.archive_date_end, self.results_count)
+
+
 class ArchiveSearchResult(Base):
     __tablename__ = 'portal_archivesearchresult'
     id = Column(Integer, primary_key=True)

@@ -53,8 +53,8 @@ class CrawlerSpiderMiddleware(object):
         for r in start_requests:
             yield r
 
-    def spider_opened(self, spider):
-        spider.logger.info('Spider opened: %s' % spider.name)
+    # def spider_opened(self, spider):
+    #     spider.logger.info('Spider opened: %s' % spider.name)
 
 
 class CrawlerDownloaderMiddleware(object):
@@ -100,8 +100,8 @@ class CrawlerDownloaderMiddleware(object):
         # - return a Request object: stops process_exception() chain
         pass
 
-    def spider_opened(self, spider):
-        spider.logger.info('Spider opened: %s' % spider.name)
+    # def spider_opened(self, spider):
+    #     spider.logger.info('Spider opened: %s' % spider.name)
 
 
 class RandomUserAgentMiddleware(object):
@@ -109,3 +109,4 @@ class RandomUserAgentMiddleware(object):
         ua  = random.choice(settings.get('USER_AGENT_LIST'))
         if ua:
             request.headers.setdefault('User-Agent', ua)
+

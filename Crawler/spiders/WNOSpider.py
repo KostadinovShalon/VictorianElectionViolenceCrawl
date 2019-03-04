@@ -25,7 +25,7 @@ class WNOSpider(Spider):
     INPUT_FILENAME = 'Crawler/spiders/WNO_search_input.csv'
 
     if os.path.exists(INPUT_FILENAME):
-        print '\nHad found the input file, reading now...\n'
+        # print '\nHad found the input file, reading now...\n'
         with open(INPUT_FILENAME,'rb') as csvfile:
             reader = csv.DictReader(csvfile)
             SEARCH_KEY_WORD_INFOS = [row for row in reader]
