@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from datetime import timedelta, datetime
-
+from dateutil.relativedelta import relativedelta
 from scrapy.spiders import Spider
 from bs4 import BeautifulSoup
 from Crawler.items import PageItem
@@ -94,10 +94,13 @@ class BNASpider(Spider):
                     self.advanced = True
                 elif search != 'basic':
                     raise Exception('Search mode can only be either advanced or basic')
-                if split == 'day' or split == 'week' or split == 'month' or split == 'year':
-                    self.split = split
-                elif split != 'none':
-                    raise Exception('Not supported split. Admited values: day, week, month, year')
+                try:
+                    self.split = int(split)
+                except ValueError:
+                    if split == 'day' or split == 'week' or split == 'month' or split == 'year':
+                        self.split = split
+                    elif split != 'none':
+                        raise Exception('Not supported split. Admited values: day, week, month, year')
             print self
             self.page_count = 0
 
@@ -331,8 +334,12 @@ class BNASpider(Spider):
 
             article_amounts = response.selector.css('#dateFacet div#date a.list-group-item')
             article_count = 0
-            for article_amount in article_amounts:
-                article_count += int(article_amount.css('span::text').extract_first().replace(',', ''))
+            if article_amounts is not None and len(article_amounts) > 0:
+                for article_amount in article_amounts:
+                    article_count += int(article_amount.css('span::text').extract_first().replace(',', ''))
+            else:
+                count_string = response.selector.css('#dateFacet div#date div span:last-child::text').extract_first()
+                article_count = int(count_string[1:][:-1])
             archive_search = search["search_db"]
             archive_search.results_count = article_count
             yield dict(identifier=identifier, search_count=archive_search)
@@ -497,31 +504,35 @@ class BNASpider(Spider):
                 page_err.write(separator.join(values))
 
         def split_dates(self, from_date, to_date):
-            delta = to_date - from_date
-            days = delta.days
             if self.split is None:
                 yield (from_date, to_date)
             else:
-                if self.split == 'day':
-                    threshold = 1
+                if isinstance(self.split, int):
+                    if self.split > 0:
+                        time_delta = relativedelta(days=self.split)
+                    else:
+                        yield (from_date, to_date)
+                        return
+                elif self.split == 'day':
+                    time_delta = relativedelta(days=1)
                 elif self.split == 'week':
-                    threshold = 6
+                    time_delta = relativedelta(weeks=1)
                 elif self.split == 'month':
-                    threshold = 29
+                    time_delta = relativedelta(months=1)
                 else:
-                    threshold = 364
-                if threshold >= days:
+                    time_delta = relativedelta(years=1)
+                if from_date + time_delta > to_date:
                     yield (from_date, to_date)
                 else:
                     aux_date = from_date
-                    for i in range(0, days + 1, threshold + 1):
-                        aux_end_date = aux_date + timedelta(days=threshold)
-                        if aux_end_date > to_date:
+                    while aux_date < to_date:
+                        aux_end_date = (aux_date + time_delta) - timedelta(days=1)
+                        if aux_end_date >= to_date:
                             yield (aux_date, to_date)
                         else:
                             aux_start_date = aux_date
-                            aux_date = aux_end_date + timedelta(days=1)
                             yield (aux_start_date, aux_end_date)
+                        aux_date = aux_end_date + timedelta(days=1)
 
 
 def initialize_search_file():
