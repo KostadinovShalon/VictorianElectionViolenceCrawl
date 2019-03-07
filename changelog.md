@@ -5,6 +5,14 @@ All notable changes since version 1.28.1 are documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [1.31.1] - 2019-03-07
+### Changed
+- Split algorithm changed. When selecting "day", a single day will be used. When choosing a 
+month, it will check for the duration of the month (the same goes for years, in the event of a leap year)
+
+### Added
+- An option to defining the split option using the number of days was added
+
 ## [1.31.0] - 2019-03-04
 ### Changed
 - Several changes were done in the code. These changes don't directly affect the performance, but they are useful
