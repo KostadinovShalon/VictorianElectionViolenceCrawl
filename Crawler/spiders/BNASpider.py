@@ -339,7 +339,10 @@ class BNASpider(Spider):
                     article_count += int(article_amount.css('span::text').extract_first().replace(',', ''))
             else:
                 count_string = response.selector.css('#dateFacet div#date div span:last-child::text').extract_first()
-                article_count = int(count_string[1:][:-1])
+                if count_string is None:
+                    article_count = 0
+                else:
+                    article_count = int(count_string[1:][:-1])
             archive_search = search["search_db"]
             archive_search.results_count = article_count
             yield dict(identifier=identifier, search_count=archive_search)
