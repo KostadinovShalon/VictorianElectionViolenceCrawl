@@ -105,6 +105,9 @@ When crawling the BNA site, you can define some options as arguments in the cons
   and 1918-02-16 to 1918-02-19. A positive integer can be passed to the split option define the number of days for 
   dividing the search. Although it has been tested with no problems, **this mode is not fully compatible with recovery 
   mode yet**
+* **download_delay**
+  * Decimal number (default = 2)
+  * Description: This value sets a delay between requests in order to avoid a big load to the crawled server. 
 
 An example of a crawl with advanced search, fast mode and json generation is obtained by typing `scrapy crawl BNA -a search=advanced -a mode=fast -a generate_json=true`
 

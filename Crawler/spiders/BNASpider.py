@@ -60,8 +60,10 @@ class BNASpider(Spider):
                 'split': self.split
             }, indent=2)
 
-        def __init__(self, mode='slow', generate_json='false', search='basic', split='none', *args, **kwargs):
+        def __init__(self, mode='slow', generate_json='false', search='basic', split='none', download_delay=2,
+                     *args, **kwargs):
             super(BNASpider, self).__init__(*args, **kwargs)
+            self.download_delay = float(download_delay)
             if mode == "recovery":
                 self.recovery = True
                 with open('recovery', 'r') as recovery_file:
