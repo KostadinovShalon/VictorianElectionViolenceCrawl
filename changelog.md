@@ -5,6 +5,10 @@ All notable changes since version 1.28.1 are documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [1.31.4] - 2020-06-19
+### Fixed
+- Exception raised for articles with no OCR content
+
 ## [1.31.3] - 2019-06-27
 ### Added
 - Downloaded delay option

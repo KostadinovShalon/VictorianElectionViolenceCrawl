@@ -22,7 +22,10 @@ def get_ocr_bna(url, cookies=None, session=None):
         s.post(login.login_url, data=payload, headers=login.headers)
         json_str = s.get(ocr_link, headers=login.headers)
     json_str.encoding = 'gbk'
-    json_str = json.loads(json_str.content)
-    for j in json_str:
-        ocr_text = ocr_text + j['LineText']
-    return ocr_text
+    try:
+        json_str = json.loads(json_str.content)
+        for j in json_str:
+            ocr_text = ocr_text + j['LineText']
+        return ocr_text
+    except ValueError:
+        return None

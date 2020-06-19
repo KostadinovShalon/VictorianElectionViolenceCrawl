@@ -2,7 +2,7 @@
 The aim of this project is to crawl news from [British Newspaper Archive](https://www.britishnewspaperarchive.co.uk/) and [Welsh Newspapers Online](http://newspapers.library.wales/) sites.
 
 ## Version
-The current version of the project is **v1.31.3**. The change history can be seen in the [Change Log](/changelog.md)
+The current version of the project is **v1.31.4**. The change history can be seen in the [Change Log](/changelog.md)
 
 ## Requirements
 This project is developed and maintained using Python 2.7. A list of requirements can be found [here](/requirements.txt). 

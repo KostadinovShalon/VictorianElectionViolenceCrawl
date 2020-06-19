@@ -453,6 +453,8 @@ class BNASpider(Spider):
             ocr_text = ''
             if not self.fast:
                 ocr_text = get_ocr_bna(url, cookies)
+                if ocr_text is None:
+                    ocr_text = ''
             download_url = 'https://www.britishnewspaperarchive.co.uk/viewer/download/bl' + link
             return download_url, ocr_text
 
