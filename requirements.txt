@@ -2,6 +2,7 @@ beautifulsoup4==4.9.3
 chardet==3.0.4
 constantly==15.1.0
 incremental==17.5.0
+mysqlclient==2.0.1
 openpyxl==3.0.5
 paramiko==2.7.2
 Pillow==8.0.1

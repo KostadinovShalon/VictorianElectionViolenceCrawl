@@ -88,7 +88,7 @@ class CandidateDocument(Base):
     page = Column(Integer)
     publication_date = Column(Date)
     word_count = Column(Integer)
-    ocr = Column(String)
+    ocr = Column(String(100000))
     g_status = Column(String(30))
     status_writer = Column(String(30))
 

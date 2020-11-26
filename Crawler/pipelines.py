@@ -94,13 +94,13 @@ def write_into_database(article_item, site='BNA', filename=None):
     if site == 'BNA':
         publication_date = datetime.datetime.strptime(article_item["publish"], "%A %d %B %Y")
         publication_date = '{0.year:4d}-{0.month:02d}-{0.day:02d}'.format(publication_date)
-    elif site == 'WNO':
-        publication_date = article_item["publish"][:4].replace('st', '').replace('nd', '').replace('rd', '') \
-            .replace('th', '')
-        publication_date += article_item["publish"][4:]
-        publication_date = datetime.datetime.strptime(publication_date, "%d%B%Y")
-        publication_date = '{0.year:4d}-{0.month:02d}-{0.day:02d}'.format(publication_date)
-        article_item["county"] = ""
+    # elif site == 'WNO':
+    #     publication_date = article_item["publish"][:4].replace('st', '').replace('nd', '').replace('rd', '') \
+    #         .replace('th', '')
+    #     publication_date += article_item["publish"][4:]
+    #     publication_date = datetime.datetime.strptime(publication_date, "%d%B%Y")
+    #     publication_date = '{0.year:4d}-{0.month:02d}-{0.day:02d}'.format(publication_date)
+    #     article_item["county"] = ""
     search_result = ArchiveSearchResult(title=article_item["title"].encode('latin-1', 'ignore'),
                                         url=article_item["download_url"].encode('latin-1', 'ignore'),
                                         description=article_item["description"].encode('latin-1', 'ignore'),

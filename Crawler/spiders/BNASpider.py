@@ -232,7 +232,7 @@ class BNASpider(Spider):
             else:
                 if os.path.exists(self.filename):
                     print('Reading search input file')
-                    with open(self.filename, 'rb') as csv_file:
+                    with open(self.filename, 'r') as csv_file:
                         reader = csv.DictReader(csv_file)
                         search_keywords = [row for row in reader]
                     print(search_keywords)
@@ -315,7 +315,7 @@ class BNASpider(Spider):
         def after_login(self, response):
             cookie = None
             for cookie_item in response.headers.getlist('Set-Cookie'):
-                cookie = cookie_item.split(';')[0].split('session_0=')[1]
+                cookie = str(cookie_item).split(';')[0].split('session_0=')[1]
                 if cookie != '':
                     break
             session_cookies = {'session_0': cookie}
@@ -352,7 +352,7 @@ class BNASpider(Spider):
             self.page_count += 1
             session_cookies = {}
             if not self.fast:
-                cookie_str = response.request.headers.getlist('Cookie')[0].split(';')[0].split('session_0=')[1]
+                cookie_str = str(response.request.headers.getlist('Cookie')[0]).split(';')[0].split('session_0=')[1]
                 session_cookies = {'session_0': cookie_str}
             search = response.meta['search']
             advanced_search = search["advanced_search"]
@@ -408,7 +408,7 @@ class BNASpider(Spider):
                 meta = BeautifulSoup(article.css('div.bna-card__meta').extract_first(), 'html.parser')
                 page['publish'] = meta.small.span.get_text().split("Published:")[1].strip()
                 for item in meta.small.span.find_next_siblings("span"):
-                    item_str = item.get_text().encode('utf-8')
+                    item_str = item.get_text()
                     if 'Newspaper' in item_str:
                         page['newspaper'] = item_str.split('Newspaper:\n')[1]
                     elif 'County' in item_str:
