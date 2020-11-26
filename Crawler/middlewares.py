@@ -1,6 +1,4 @@
-# -*- coding: utf-8 -*-
 import random
-from scrapy.conf import settings
 # Define here the models for your spider middleware
 #
 # See documentation in:
@@ -9,7 +7,7 @@ from scrapy.conf import settings
 from scrapy import signals
 
 
-class CrawlerSpiderMiddleware(object):
+class CrawlerSpiderMiddleware:
     # Not all methods need to be defined. If a method is not defined,
     # scrapy acts as if the spider middleware does not modify the
     # passed objects.
@@ -53,11 +51,11 @@ class CrawlerSpiderMiddleware(object):
         for r in start_requests:
             yield r
 
-    # def spider_opened(self, spider):
-    #     spider.logger.info('Spider opened: %s' % spider.name)
+    def spider_opened(self, spider):
+        spider.logger.info('Spider opened: %s' % spider.name)
 
 
-class CrawlerDownloaderMiddleware(object):
+class CrawlerDownloaderMiddleware:
     # Not all methods need to be defined. If a method is not defined,
     # scrapy acts as if the downloader middleware does not modify the
     # passed objects.
@@ -100,13 +98,20 @@ class CrawlerDownloaderMiddleware(object):
         # - return a Request object: stops process_exception() chain
         pass
 
-    # def spider_opened(self, spider):
-    #     spider.logger.info('Spider opened: %s' % spider.name)
+    def spider_opened(self, spider):
+        spider.logger.info('Spider opened: %s' % spider.name)
 
 
-class RandomUserAgentMiddleware(object):
+class RandomUserAgentMiddleware:
+    def __init__(self, user_agent_list):
+        self.user_agent_list = user_agent_list
+
     def process_request(self, request, spider):
-        ua  = random.choice(settings.get('USER_AGENT_LIST'))
+        ua = random.choice(self.user_agent_list)
         if ua:
             request.headers.setdefault('User-Agent', ua)
 
+    @classmethod
+    def from_crawler(cls, crawler):
+        s = crawler.settings
+        return cls(s.get('USER_AGENT_LIST'))

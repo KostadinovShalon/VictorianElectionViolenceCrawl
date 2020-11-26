@@ -4,11 +4,11 @@ import json
 from Crawler.utils.databasemodels import ArchiveSearchResult, CandidateDocument
 from Crawler.utils import dbconn
 import datetime
-from items import ArticleItem
+from Crawler.items import ArticleItem
 from Crawler.utils.dbutils import session_scope
 
 
-class NewsPipeline(object):
+class NewsPipeline:
 
     def process_item(self, item, spider):
         if spider.name == 'BNA':
@@ -16,67 +16,14 @@ class NewsPipeline(object):
                 if spider.counting:
                     identifier = item["identifier"]
                     article_item = item["search_count"]
-                    print 'Articles in search \"%s [%s - %s]\": %d' % (identifier, article_item.archive_date_start,
-                                                                       article_item.archive_date_end,
-                                                                       article_item.results_count)
+                    print(f'Articles in search "{identifier} [{article_item.archive_date_start} - '
+                          f'{article_item.archive_date_end}]": {article_item.results_count}')
                     with session_scope() as session:
                         dbconn.insert_search(session, article_item)
                 else:
                     process_bna_item(item)
             except AttributeError:
                 process_bna_item(item)
-
-        elif spider.name == 'GN':
-            articles_in_page_count = len(item['site'])
-            for i in range(articles_in_page_count):
-                site = item['site'][i]
-                keyword = item['keyword'][i]
-                reprint = item['reprints'][i]
-                title = item['titles'][i]
-                publish = item['publishs'][i]
-                county = extract_county_from_bracket(item['counties'][i])
-                word = item['words'][i]
-                newspaper = item['newspapers'][i]
-                download_page = item['download_pages'][i]
-
-                article_item = ArticleItem(site=site, reprint=reprint, title=title, publish=publish,
-                                           county=county, word=word, newspaper=newspaper, download_page=download_page)
-                print 'Writting the data into the json file now..........'
-                filename = site
-                article_item.write_into_json_file(filename)
-
-        elif spider.name == 'WNO':
-            articles_in_page_count = len(item['site'])
-            if articles_in_page_count > 0:
-                site = item['site']
-                keyword = item['keyword']
-                start_date = item['start_date']
-                end_date = item['end_date']
-                search_id = item['search_id']
-                filename = "{}_{}_{}_{}".format(site, keyword, start_date, end_date)
-                for i in range(articles_in_page_count):
-                    title = item['titles'][i]
-                    title = extract_words_from_line_break(title)
-                    publish = item['publishs'][i]
-                    publish = extract_date_from_string(publish)
-                    description = item['descriptions'][i]
-                    description = extract_words_from_line_break(description)
-                    # description = description.decode('unicode_escape')
-                    type_ = extract_words_from_line_break(item['types'][i])
-                    words = extract_number_from_string(item['words'][i])
-                    newspaper = extract_words_from_line_break(item['newspapers'][i])
-                    page = extract_number_from_string(item['pages'][i])
-                    download_page = item['download_pages'][i]
-                    ocr = extract_words_from_line_break(item['ocrs'][i])
-                    article_item = ArticleItem(site=site, title=title, publish=publish,
-                                               description=description, type_=type_, word=words, newspaper=newspaper,
-                                               page=page, download_page=download_page, search_id=search_id,
-                                               download_url=download_page, ocr=ocr, start_date=start_date,
-                                               end_date=end_date)
-
-                    print 'Writting the data into the json file now..........'
-                    article_item.write_into_json_file(filename)
-                    write_into_database(article_item, site='WNO')
 
 
 def process_bna_item(page_item):
@@ -108,10 +55,10 @@ def process_bna_item(page_item):
                                end_date=end_date, search_id=search_id)
 
     if generate_json:
-        print 'Writing data into the json file'
+        print('Writing data into the json file')
         article_item.write_into_json_file(filename)
     else:
-        print 'Writing data only into database'
+        print('Writing data only into database')
         filename = None
     write_into_database(article_item, filename=filename)
 
@@ -175,7 +122,7 @@ def write_into_database(article_item, site='BNA', filename=None):
                 with open(full_json_path, 'rb') as json_file:
                     info = json_file.read()
                     info = info.strip()
-                    info = "[" + info[:-1] + "]"
+                    info = f"[{info[:-1]}]"
                     jarray = json.loads(info)
                     jarticle = next((row for row in jarray if row['download_url'] == search_result.url), None)
                     if jarticle is None:

@@ -1,10 +1,9 @@
-from PyPDF2 import PdfFileWriter, PdfFileReader
-import paramiko
-from io import BytesIO
+import PyPDF2
+
 
 with open("test.pdf", "rb") as in_f:
-    input1 = PdfFileReader(in_f)
-    output = PdfFileWriter()
+    input1 = PyPDF2.PdfFileReader(in_f)
+    output = PyPDF2.PdfFileWriter()
 
     width = 8034
     height = 10715
@@ -19,10 +18,10 @@ with open("test.pdf", "rb") as in_f:
     W = page.mediaBox.getUpperRight_x()
     r = float(height) / width
     h = (H - r*W) / 2
-    print W, H
+    print(W, H)
     R = float(W) / float(width)
     R2 = float(H) / float(height)
-    print R
+    print(R)
     W1 = R*xbottomleft
     W2 = R*xtopright
     H1 = R2*(height - ytopright)

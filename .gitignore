@@ -19,5 +19,8 @@ Crawler/Records/*
 
 *.sql
 *.docx
-SGIA-19EVWC-5.pdf
+
+
+# Virtual environment
+venv/
 

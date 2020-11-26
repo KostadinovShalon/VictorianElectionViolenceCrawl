@@ -27,4 +27,4 @@ if os.path.exists('search_ids.csv'):
                     writer.writerow(fieldnames)
                     writer.writerows(needing_coding)
 else:
-    print 'No search_ids.csv file found. You have to perform the crawler first'
+    print('No search_ids.csv file found. You have to perform the crawler first')

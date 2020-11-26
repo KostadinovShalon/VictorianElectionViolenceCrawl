@@ -3,29 +3,27 @@ import json
 from Crawler.utils.dbconn import update_candidate, insert, update_art_url, update_page_url
 from Crawler.utils.dbutils import session_scope
 from FilesHandler.BNAHandler import BNAHandler
-from FilesHandler.WNOHandler import WNOHandler
-from FilesHandler.FileHandler import upload_file
 from Crawler.utils.databasemodels import PortalDocument, CandidateDocument
 import datetime
 import os.path
 from Crawler.utils.ocr import get_ocr_bna
 
-f = raw_input('CSV Filename (without extension): ')
+f = input('CSV Filename (without extension): ')
 
 high_resolution = False
 if "britishnewspaperarchive" in f:
     tag = "BNA"
 elif "welshnewspapersonline" in f:
     tag = "WNO"
-    hr = raw_input('High resolution? [Y/N]')
+    hr = input('High resolution? [Y/N]')
     high_resolution = hr == 'Y' or hr == 'y'
 else:
-    tag = raw_input('Site [BNA|WNO]: ')
+    tag = input('Site [BNA|WNO]: ')
     if tag != "BNA" and tag != "WNO":
-        print "Site not supported. Exiting."
+        print("Site not supported. Exiting.")
         exit()
     if tag == "WNO":
-        hr = raw_input('High resolution? [Y/N]')
+        hr = input('High resolution? [Y/N]')
         high_resolution = hr == 'Y' or hr == 'y'
 
 csv_path = "Crawler/Records/" + f + ".csv"
@@ -35,7 +33,7 @@ articles = []
 with session_scope() as session:
     with open(csv_path, 'rb') as csvfile:
         reader = csv.reader(csvfile, delimiter=',')
-        print "Reading " + csv_path
+        print("Reading " + csv_path)
         try:
             firstrow = True
             for row in reader:
@@ -50,16 +48,16 @@ with session_scope() as session:
                         pass
 
         except csv.Error:
-            print "File does not exists"
+            print("File does not exists")
 
     if len(articles) > 0:
-        print "Procesing articles"
+        print("Procesing articles")
         jarray = None
         if os.path.isfile(full_json_path):
             with open(full_json_path, 'rb') as jsonfile:
                 info = jsonfile.read()
                 info = info.strip()
-                info = "[" + info[:-1] + "]"
+                info = f"[{info[:-1]}]"
                 jarray = json.loads(info)
 
         for article in articles:
@@ -74,7 +72,7 @@ with session_scope() as session:
                 g_status = article_status
             if status_writer is None:
                 status_writer = 'gary'
-            print "Processing " + article_doc_title + "(" + article_title + ")"
+            print("Processing ", article_doc_title, f"({article_title})")
 
             jarticle = None
             candidate_document = None
@@ -157,69 +155,69 @@ with session_scope() as session:
                                     document.ocr = ocr.encode('latin-1', 'ignore')
                                 insert(session, document)
                                 update_candidate(session, candidate_id, str(article_status), g_status, status_writer)
-                                print "Candidate document status updated"
-                                print "Downloading article"
+                                print("Candidate document status updated")
+                                print("Downloading article")
                                 handler.download_and_upload_file(document.id)
-                                print "Article downloaded and uploaded to the server"
+                                print("Article downloaded and uploaded to the server")
                                 file_processed = True
                                 art_uploaded = True
                             except Exception as e:
                                 print(e)
-                                print "Problem with article. Please use the update_pdf_files.py script."
-                        elif tag == "WNO":
-                            try:
-                                handler = WNOHandler(article_url)
-                                insert(session, document)
-                                update_candidate(session, candidate_id, str(article_status), g_status, status_writer)
-                                print "Candidate document status updated"
-                                print "Downloading article"
-                                if high_resolution:
-                                    handler.download_and_upload_high_resolution_image(document.id)
-                                    update_page_url(session, document.id,
-                                                    '/static/documents/' + str(document.id) + "/page.jpg")
-                                else:
-                                    handler.download_and_upload_file(document.id)
-                                    update_page_url(session, document.id,
-                                                    '/static/documents/' + str(document.id) + "/page.jpg")
-                                print "Article downloaded and uploaded to the server"
-                                file_processed = True
-                                dims = handler.get_dim()
-                                art_tbs = handler.get_text_blocks()
-
-                                if art_tbs is not None:
-                                    count = 0
-                                    arts_url = ""
-                                    for tb in art_tbs:
-                                        print "Text Block #" + str(count + 1)
-                                        if count != 0:
-                                            arts_url += ";"
-                                        x = round(float(tb['x']) * 100, 3)
-                                        y = round(float(tb['y']) * 100, 3)
-                                        w = round(float(tb['w']) * 100, 3)
-                                        h = round(float(tb['h']) * 100, 3)
-
-                                        y = y * float(dims[0]) / dims[1]
-                                        h = h * float(dims[0]) / dims[1]
-                                        cropped = handler.get_cropped_image(x, y, w, h)
-                                        upload_file(document.id, cropped, "art" + str(count) + ".jpg")
-                                        print "Cropped and uploaded"
-                                        arts_url += "/static/documents/" + str(document.id) + "/art" + str(
-                                            count) + ".pdf"
-                                        count = count + 1
-                                    update_art_url(session, document.id, arts_url)
-                                    art_uploaded = True
-                                else:
-                                    print "There was a problem obtaining the articles location"
-                                    if not high_resolution:
-                                        print "Downloading high resolution image"
-                                        handler.download_and_upload_high_resolution_image(document.id)
-                                        update_page_url(session, document.id,
-                                                        '/static/documents/' + str(document.id) + "/page.jpg")
-
-                                print "Documents uploaded with success!"
-                            except:
-                                if not file_processed:
-                                    print "Problem with article. Please use the update_pdf_files.py script."
+                                print("Problem with article. Please use the update_pdf_files.py script.")
+                        # elif tag == "WNO":
+                        #     try:
+                        #         handler = WNOHandler(article_url)
+                        #         insert(session, document)
+                        #         update_candidate(session, candidate_id, str(article_status), g_status, status_writer)
+                        #         print "Candidate document status updated"
+                        #         print "Downloading article"
+                        #         if high_resolution:
+                        #             handler.download_and_upload_high_resolution_image(document.id)
+                        #             update_page_url(session, document.id,
+                        #                             '/static/documents/' + str(document.id) + "/page.jpg")
+                        #         else:
+                        #             handler.download_and_upload_file(document.id)
+                        #             update_page_url(session, document.id,
+                        #                             '/static/documents/' + str(document.id) + "/page.jpg")
+                        #         print "Article downloaded and uploaded to the server"
+                        #         file_processed = True
+                        #         dims = handler.get_dim()
+                        #         art_tbs = handler.get_text_blocks()
+                        #
+                        #         if art_tbs is not None:
+                        #             count = 0
+                        #             arts_url = ""
+                        #             for tb in art_tbs:
+                        #                 print "Text Block #" + str(count + 1)
+                        #                 if count != 0:
+                        #                     arts_url += ";"
+                        #                 x = round(float(tb['x']) * 100, 3)
+                        #                 y = round(float(tb['y']) * 100, 3)
+                        #                 w = round(float(tb['w']) * 100, 3)
+                        #                 h = round(float(tb['h']) * 100, 3)
+                        #
+                        #                 y = y * float(dims[0]) / dims[1]
+                        #                 h = h * float(dims[0]) / dims[1]
+                        #                 cropped = handler.get_cropped_image(x, y, w, h)
+                        #                 upload_file(document.id, cropped, "art" + str(count) + ".jpg")
+                        #                 print "Cropped and uploaded"
+                        #                 arts_url += "/static/documents/" + str(document.id) + "/art" + str(
+                        #                     count) + ".pdf"
+                        #                 count = count + 1
+                        #             update_art_url(session, document.id, arts_url)
+                        #             art_uploaded = True
+                        #         else:
+                        #             print "There was a problem obtaining the articles location"
+                        #             if not high_resolution:
+                        #                 print "Downloading high resolution image"
+                        #                 handler.download_and_upload_high_resolution_image(document.id)
+                        #                 update_page_url(session, document.id,
+                        #                                 '/static/documents/' + str(document.id) + "/page.jpg")
+                        #
+                        #         print "Documents uploaded with success!"
+                        #     except:
+                        #         if not file_processed:
+                        #             print "Problem with article. Please use the update_pdf_files.py script."
 
                         if file_processed:
                             update_page_url(session, document.id,
@@ -227,18 +225,17 @@ with session_scope() as session:
                             if art_uploaded:
                                 update_art_url(session, document.id, '/static/documents/' +
                                                str(document.id) + "/art.pdf")
-                            print "Portal document inserted"
+                            print("Portal document inserted")
 
                     else:
-                        print "Article not inserted. An identical article is found at id = " + str(
-                            check_if_exists[0].id)
-                        print "Updating status to 101"
+                        print(f"Article not inserted. An identical article is found at id = {check_if_exists[0].id}")
+                        print("Updating status to 101")
                         update_candidate(session, candidate_id, '101', g_status, status_writer)
                 else:
                     update_candidate(session, candidate_id, str(article_status), g_status, status_writer)
-                    print "Candidate document status updated"
+                    print("Candidate document status updated")
             else:
-                print "Article not found in " + full_json_path + " or in database"
+                print(f"Article not found in {full_json_path} or in database")
 
     else:
-        print "nothing!"
+        print("nothing!")

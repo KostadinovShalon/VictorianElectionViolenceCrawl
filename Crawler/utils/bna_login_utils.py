@@ -1,4 +1,4 @@
-import bna_login_details as details
+import Crawler.utils.bna_login_details as details
 
 username = details.username
 password = details.password

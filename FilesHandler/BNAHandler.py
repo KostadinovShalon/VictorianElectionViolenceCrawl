@@ -1,5 +1,5 @@
 from io import BytesIO
-from FileHandler import upload_file
+from FilesHandler.FileHandler import upload_file
 import requests
 from PIL import Image
 import PyPDF2
@@ -42,24 +42,24 @@ class BNAHandler:
         images = []
         page_count = 1
         for page in self.original_pages:
-            print 'Downloading page ', page_count, page
+            print('Downloading page ', page_count, page)
             f = self.s.get(page, headers={'User-Agent': "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_3) "
                                                         "AppleWebKit/537.36 (KHTML, like Gecko) "
                                                         "Chrome/64.0.3282.167 Safari/537.36"})
-            print 'Page ', page_count, ' downloaded'
+            print('Page ', page_count, ' downloaded')
             tmp = BytesIO(f.content)
             tmp.seek(0)
             im = Image.open(tmp)
             images.append({'identifier': page, 'image': im})
             im.save("./temp" + str(page_count) + ".pdf", 'PDF', resolution=100.0)
-            print 'Page ', page_count, ' temporally saved'
+            print('Page ', page_count, ' temporally saved')
             pdfs.append("temp" + str(page_count) + ".pdf")
             page_count = page_count + 1
             tmp.close()
             f.close()
         page_pdf = self.join_pdfs(pdfs, 'temp2upload.pdf')
 
-        print 'Uploading page pdf'
+        print('Uploading page pdf')
         upload_file(document_id, page_pdf, "page.pdf")
         os.remove('temp2upload.pdf')
         for page in pdfs:
@@ -83,7 +83,7 @@ class BNAHandler:
             page_id = page_area['PageId']
             article_file = next((af for af in article_files if page_id in af['identifier']), None)
             if article_file is not None:
-                print "Cropping #" + str(count + 1)
+                print(f"Cropping #{count + 1}")
                 xb = int(page_area['XBottomLeft']) * article_file['image'].size[0] / self.get_dim()[0]
                 yb = int(page_area['YBottomLeft']) * article_file['image'].size[1] / self.get_dim()[1]
                 xt = int(page_area['XTopRight']) * article_file['image'].size[0] / self.get_dim()[0]
@@ -129,7 +129,7 @@ class BNAHandler:
             for page_image in page_images:
                 for page in page_image[1]:
                     os.remove(page)
-        print "Cropped and saved"
+        print("Cropped and saved")
 
     @staticmethod
     def join_pdfs(pages, name):

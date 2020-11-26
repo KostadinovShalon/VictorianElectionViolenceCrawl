@@ -8,18 +8,18 @@ from Crawler.utils.dbutils import session_scope
 import csv
 
 payload = {
-        'Username': login.username,
-        "Password": login.password,
-        "RememberMe": login.remember_me,
-        "NextPage": login.next_page}
+    'Username': login.username,
+    "Password": login.password,
+    "RememberMe": login.remember_me,
+    "NextPage": login.next_page}
 
-f = raw_input('CSV Filename with candidates whose OCR is going to be downloaded'
-              ' (without extension): ')
+f = input('CSV Filename with candidates whose OCR is going to be downloaded'
+          ' (without extension): ')
 csv_path = f + ".csv"
 candidates = []
 with open(csv_path, 'rb') as csv_file:
     reader = csv.reader(csv_file, delimiter=',')
-    print "Reading " + csv_path
+    print("Reading", csv_path)
     try:
         first_row = True
         for row in reader:
@@ -28,24 +28,24 @@ with open(csv_path, 'rb') as csv_file:
             else:
                 try:
                     candidates.append(row[0])
-                except ValueError:
-                    print
+                except ValueError as e:
+                    print(e)
     except csv.Error:
-        print "File does not exists"
+        print("File does not exists")
 with session_scope() as session:
-    documents = session.query(CandidateDocument.id, CandidateDocument.url)\
-                        .filter(or_(CandidateDocument.ocr == '',
-                                    CandidateDocument.ocr is None))\
-                        .filter(or_(CandidateDocument.url.like('%britishnewspaper%'),
-                                    CandidateDocument.url.like('%wales')))\
-                        .filter(CandidateDocument.id.in_(tuple(candidates)))\
-                        .order_by(CandidateDocument.id).all()
+    documents = session.query(CandidateDocument.id, CandidateDocument.url) \
+        .filter(or_(CandidateDocument.ocr == '',
+                    CandidateDocument.ocr is None)) \
+        .filter(or_(CandidateDocument.url.like('%britishnewspaper%'),
+                    CandidateDocument.url.like('%wales'))) \
+        .filter(CandidateDocument.id.in_(tuple(candidates))) \
+        .order_by(CandidateDocument.id).all()
     wno_session = requests.Session()
     bna_session = requests.Session()
     bna_session.post(login.login_url, data=payload, headers=login.headers)
 
     n = len(documents)
-    print n, 'documents to update'
+    print(n, 'documents to update')
 
     for document in documents:
         ocr = None
@@ -64,4 +64,4 @@ with session_scope() as session:
                 filter(CandidateDocument.id == document.id). \
                 update(values={"ocr": ocr.encode('latin-1', 'ignore')})
             session.commit()
-            print 'Updated Candidate', document.id
+            print('Updated Candidate', document.id)

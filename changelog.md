@@ -5,6 +5,18 @@ All notable changes since version 1.28.1 are documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [2.0.0] - 2020-11-26
+###Added
+
+### Changed
+- Python version was updated from 2.7 to 3.6+
+- Requirements file was updated
+
+### Fixed
+
+### Removed
+- Spiders fpr WNO and GN, that were never used
+
 ## [1.31.4] - 2020-06-19
 ### Fixed
 - Exception raised for articles with no OCR content

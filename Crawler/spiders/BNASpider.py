@@ -13,7 +13,6 @@ from Crawler.utils import bna_login_utils as login
 from Crawler.utils.dbutils import session_scope
 from Crawler.utils.ocr import get_ocr_bna
 from w3lib.html import remove_tags
-from string import join
 from openpyxl import load_workbook
 from Crawler.utils.advanced_search import AdvancedSearch
 import json
@@ -77,7 +76,7 @@ class BNASpider(Spider):
                         self.mode = "slow"
                     self.generate_json = lines[3] == "True"
                     self.advanced = lines[4] == "True"
-                    print self.advanced
+                    print(self.advanced)
                     self.recover_url = lines[5]
                     self.split = lines[6]
                     self.rec_date_partition = int(lines[7])
@@ -103,16 +102,16 @@ class BNASpider(Spider):
                         self.split = split
                     elif split != 'none':
                         raise Exception('Not supported split. Admited values: day, week, month, year')
-            print self
+            print(self)
             self.page_count = 0
 
             if self.advanced:
-                print 'Reading advanced search input file\n'
+                print('Reading advanced search input file\n')
                 wb = load_workbook(filename=self.advanced_search_filepath, read_only=True)
                 ws = wb['Search']
                 count = 0
                 first = True
-                print 'URLS:'
+                print('URLS:')
                 for row in list(ws.rows)[self.start_from_row + 1:]:
                     empty = True
                     for j in range(0, 3):
@@ -180,7 +179,7 @@ class BNASpider(Spider):
                                                          search_db=archive_search,
                                                          advanced_search=derived_search))
                                 date_partition += 1
-                                print ' - ' + derived_search.get_url()
+                                print(' -', derived_search.get_url())
                         else:
                             url = self.recover_url if self.recovery and first else advanced_search.get_url()
                             first = False
@@ -226,23 +225,23 @@ class BNASpider(Spider):
                                                      date_partition=0,
                                                      search_db=archive_search,
                                                      advanced_search=advanced_search))
-                            print ' - ' + advanced_search.get_url()
+                            print(' - ', advanced_search.get_url())
                     count += 1
                     self.rec_date_partition = -1
                 wb.close()
             else:
                 if os.path.exists(self.filename):
-                    print 'Reading search input file'
+                    print('Reading search input file')
                     with open(self.filename, 'rb') as csv_file:
                         reader = csv.DictReader(csv_file)
                         search_keywords = [row for row in reader]
-                    print search_keywords
+                    print(search_keywords)
                 else:
                     raise Exception('BNA Spider ERROR: ' + self.filename + ' was not found. Check if it exists.')
                 count = 0
                 if self.recovery:
-                    print "Start from row ", self.start_from_row
-                print 'SEARCHES: '
+                    print("Start from row ", self.start_from_row)
+                print('SEARCHES: ')
                 first = True
                 for i in range(len(search_keywords)):
                     if self.recovery:
@@ -282,7 +281,7 @@ class BNASpider(Spider):
                                                  date_partition=date_partition,
                                                  search_db=archive_search,
                                                  advanced_search=None))
-                        print ' - ', url
+                        print(' - ', url)
                     count += 1
                     self.rec_date_partition = -1
 
@@ -295,7 +294,7 @@ class BNASpider(Spider):
                 if not self.recovery:
                     initialize_search_file()
                 if not self.fast:
-                    print 'BNA Spider: Logging in'
+                    print('BNA Spider: Logging in')
                     yield scrapy.FormRequest(url=login.login_url,
                                              headers=login.headers,
                                              meta={
@@ -321,9 +320,9 @@ class BNASpider(Spider):
                     break
             session_cookies = {'session_0': cookie}
             if cookie == '':
-                print 'BNA Spider: Problem trying to logging in (Cookie not found)'
+                print('BNA Spider: Problem trying to logging in (Cookie not found)')
             else:
-                print 'BNA Spider: Successful login. \n'
+                print('BNA Spider: Successful login. \n')
                 yield scrapy.Request(self.searchs[0]["url"], meta={"search": self.searchs[0]},
                                      cookies=session_cookies)
 
@@ -349,7 +348,7 @@ class BNASpider(Spider):
             archive_search.results_count = article_count
             yield dict(identifier=identifier, search_count=archive_search)
 
-        def parse(self, response):
+        def parse(self, response, **kwargs):
             self.page_count += 1
             session_cookies = {}
             if not self.fast:
@@ -359,15 +358,11 @@ class BNASpider(Spider):
             advanced_search = search["advanced_search"]
             archive_search = search["search_db"]
             if self.advanced:
-                print 'Crawling page %d - "%s [%s - %s]"' % (self.page_count,
-                                                             advanced_search.get_basic_search_string(),
-                                                             advanced_search.fromdate,
-                                                             advanced_search.todate)
+                print(f'Crawling page {self.page_count} - "{advanced_search.get_basic_search_string()} '
+                      f'[{advanced_search.fromdate} - {advanced_search.todate}]"')
             else:
-                print 'Crawling page %d - "%s [%s - %s]"' % (self.page_count,
-                                                             archive_search.search_text,
-                                                             archive_search.archive_date_start,
-                                                             archive_search.archive_date_end)
+                print(f'Crawling page {self.page_count} - "{archive_search.search_text} '
+                      f'[{archive_search.archive_date_start} - {archive_search.archive_date_end}]"')
 
             search_id = archive_search.id
             if search_id == 0 or search_id is None:
@@ -377,7 +372,7 @@ class BNASpider(Spider):
                     avoid_appending = True
                 else:
                     dbconn.insert_search(self.session, archive_search)
-                    print "Search inserted into the database"
+                    print("Search inserted into the database")
                     search_id = archive_search.id
                 if not avoid_appending:
                     self.write_search(archive_search, advanced_search)
@@ -408,7 +403,7 @@ class BNASpider(Spider):
                 page['ocr'] = ocr
                 page['title'] = this_title.css('a::text').extract_first().strip()
                 page['hint'] = remove_tags(this_title.css('a::attr(title)').extract_first().strip())
-                page['description'] = join(article.css('p.bna-card__body__description::text').extract()).strip()
+                page['description'] = ".".join(article.css('p.bna-card__body__description::text').extract()).strip()
 
                 meta = BeautifulSoup(article.css('div.bna-card__meta').extract_first(), 'html.parser')
                 page['publish'] = meta.small.span.get_text().split("Published:")[1].strip()
@@ -431,7 +426,7 @@ class BNASpider(Spider):
                         # print item_str.split('\nTags:\n')
                         page['tag'] = item_str.split('\nTags:\n')[1]
                     else:
-                        print 'Error'
+                        print('Error')
                 yield page
 
             next_page = response.selector.css('a[title="Forward one page"]::attr(href)').extract_first()
@@ -512,13 +507,13 @@ class BNASpider(Spider):
 
         def split_dates(self, from_date, to_date):
             if self.split is None:
-                yield (from_date, to_date)
+                yield from_date, to_date
             else:
                 if isinstance(self.split, int):
                     if self.split > 0:
                         time_delta = relativedelta(days=self.split)
                     else:
-                        yield (from_date, to_date)
+                        yield from_date, to_date
                         return
                 elif self.split == 'day':
                     time_delta = relativedelta(days=1)
@@ -529,16 +524,16 @@ class BNASpider(Spider):
                 else:
                     time_delta = relativedelta(years=1)
                 if from_date + time_delta > to_date:
-                    yield (from_date, to_date)
+                    yield from_date, to_date
                 else:
                     aux_date = from_date
                     while aux_date < to_date:
                         aux_end_date = (aux_date + time_delta) - timedelta(days=1)
                         if aux_end_date >= to_date:
-                            yield (aux_date, to_date)
+                            yield aux_date, to_date
                         else:
                             aux_start_date = aux_date
-                            yield (aux_start_date, aux_end_date)
+                            yield aux_start_date, aux_end_date
                         aux_date = aux_end_date + timedelta(days=1)
 
 
