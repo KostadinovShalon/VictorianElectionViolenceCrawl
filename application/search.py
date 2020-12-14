@@ -4,15 +4,15 @@ from flask import Blueprint, request, render_template, url_for, redirect, jsonif
 from flask_cors import cross_origin, CORS
 from scrapy import signals
 from scrapy.crawler import CrawlerRunner
-from Crawler.spiders.BNASpider import GeneralBNASpider
+from Crawler.spiders.BNASpider import GeneralBNASpider, BNACountSpider, BNASpiderWithLogin
 from Crawler.utils.search_terms import SearchTerms, AdvancedSearchTerms
 from Crawler.settings import settings
 from scrapy.settings import Settings
 from scrapy.signalmanager import dispatcher
-import json
 
 crawl_runner = CrawlerRunner(Settings(settings))
 scrape_in_progress = False
+count_in_progress = False
 
 current_activity_info = {
     "search_terms": None,  # Her I save an array with the search terms of the current search
@@ -21,6 +21,36 @@ current_activity_info = {
     "total_articles": [],  # Increasing list of total articles for each search_term
     "scrapping": False
 }
+
+count_activity_info = {
+    "search_terms": None,  # Her I save an array with the search terms of the current search
+    "total_articles": [],  # Increasing list of total articles for each search_term
+    "counting": False
+}
+
+login_details = {
+    "username": 'nick.vivyan@durham.ac.uk',
+    "password": 'EV19@Nick',
+    "remember_me": 'false',
+    "next_page": '',
+
+    "login_url": "https://www.britishnewspaperarchive.co.uk/account/login",
+
+    "headers": {
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
+        "Accept-Encoding": "gzip, deflate, br",
+        "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
+        "Cache-Control": "max-age=0",
+        "Connection": "keep-alive",
+        "Host": "www.britishnewspaperarchive.co.uk",
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_3) AppleWebKit/537.36 (KHTML, like Gecko) "
+                      "Chrome/64.0.3282.167 Safari/537.36",
+        "Origin": "https://www.britishnewspaperarchive.co.uk",
+        "Link": "<https://www.britishnewspaperarchive.co.uk/account/login>; rel=\"canonical\"",
+        "X-Frame-Options": "SAMEORIGIN",
+    }
+}
+
 
 bp = Blueprint('search', __name__)
 CORS(bp)
@@ -35,10 +65,11 @@ def start_search():
         if request.method == 'POST':
             print(f"{request.json}")
             mode = request.json["mode"]
+            ocr = request.json["ocr"] if "ocr" in request.json else False
             print(mode == "advanced")
             input_search_terms = request.json["terms"]
             search_terms = get_search_terms_instances(input_search_terms, mode == 'advanced')
-            scrape_with_crochet(mode == "advanced", search_terms)
+            scrape_with_crochet(mode == "advanced", search_terms, ocr)
             current_activity_info = {"search_terms": input_search_terms, "search_index": 0, "downloaded_articles": [],
                                      "total_articles": [], "scrapping": True}
             scrape_in_progress = True
@@ -96,10 +127,13 @@ def download_status():
 
 
 @crochet.run_in_reactor
-def scrape_with_crochet(advanced, search_terms):
+def scrape_with_crochet(advanced, search_terms, ocr):
     current_activity_info["scrapping"] = True
     dispatcher.connect(_item_scraped, signal=signals.item_scraped)
-    eventual = crawl_runner.crawl(GeneralBNASpider, advanced=advanced, search_terms=search_terms)
+    if ocr:
+        eventual = crawl_runner.crawl(BNASpiderWithLogin, login_details=login_details, advanced=advanced, search_terms=search_terms)
+    else:
+        eventual = crawl_runner.crawl(GeneralBNASpider, advanced=advanced, search_terms=search_terms)
     eventual.addCallback(finished_scrape)
 
 
@@ -121,3 +155,50 @@ def _item_scraped(item, response, spider):
         current_activity_info["total_articles"].append(item["total_articles"])
         current_activity_info["downloaded_articles"].append(0)
     current_activity_info["downloaded_articles"][-1] += 1
+
+
+@bp.route('/search/count', methods=("GET", "POST"))
+def start_count():
+    global count_in_progress
+    global count_activity_info
+
+    if not count_in_progress:
+        if request.method == 'POST':
+            print(f"{request.json}")
+            mode = request.json["mode"]
+            print(mode == "advanced")
+            input_search_terms = request.json["terms"]
+            search_terms = get_search_terms_instances(input_search_terms, mode == 'advanced')
+            count_with_crochet(mode == "advanced", search_terms)
+            count_activity_info = {
+                "search_terms": input_search_terms,
+                "total_articles": [],
+                "counting": True
+            }
+            count_in_progress = True
+        return jsonify(count_activity_info)
+    return jsonify(count_activity_info)
+
+
+@crochet.run_in_reactor
+def count_with_crochet(advanced, search_terms):
+    dispatcher.connect(_item_counted, signal=signals.item_scraped)
+    eventual = crawl_runner.crawl(BNACountSpider, advanced=advanced, search_terms=search_terms)
+    eventual.addCallback(finished_count)
+
+
+def finished_count(*args):
+    """
+    A callback that is fired after the scrape has completed.
+    Set a flag to allow display the results from /results
+    """
+    global count_in_progress
+    global count_activity_info
+    count_in_progress = False
+    count_activity_info["counting"] = False
+
+
+def _item_counted(item, response, spider):
+    global count_activity_info
+    if item["search_index"] >= len(count_activity_info["total_articles"]):
+        count_activity_info["total_articles"].append(item["search_count"])

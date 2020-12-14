@@ -15,11 +15,12 @@ class NewsPipeline:
             if spider.name == 'BNACounting':
                 identifier = item["identifier"]
                 article_item = item["search_count"]
+                c = article_item.results_count
                 print(f'Articles in search "{identifier} [{article_item.archive_date_start} - '
                       f'{article_item.archive_date_end}]": {article_item.results_count}')
                 with session_scope() as session:
                     dbconn.insert_search(session, article_item)
-                return article_item
+                return dict(search_index=item["search_index"], search_count=c)
             else:
                 process_bna_item(item)
                 return item
@@ -62,7 +63,7 @@ def process_bna_item(page_item):
     else:
         print('Writing data only into database')
         filename = None
-    write_into_database(article_item, filename=filename)
+    write_into_database(article_item)
 
 
 def extract_words_from_hints(hints):
@@ -91,7 +92,7 @@ def extract_county_from_bracket(str_):
         return None
 
 
-def write_into_database(article_item, site='BNA', filename=None):
+def write_into_database(article_item, site='BNA'):
     publication_date = article_item["publish"]
     if site == 'BNA':
         publication_date = datetime.datetime.strptime(article_item["publish"], "%A %d %B %Y")
@@ -119,24 +120,9 @@ def write_into_database(article_item, site='BNA', filename=None):
         if unique_result is None:
             ocr = ""
             page = 0
-            try:
-                full_json_path = "Crawler/Records/" + filename + ".json"
-                with open(full_json_path, 'rb') as json_file:
-                    info = json_file.read()
-                    info = info.strip()
-                    info = f"[{info[:-1]}]"
-                    jarray = json.loads(info)
-                    jarticle = next((row for row in jarray if row['download_url'] == search_result.url), None)
-                    if jarticle is None:
-                        jarticle = next((row for row in jarray if row['download_page'] == search_result.url),
-                                        None)
-                    if jarticle is not None:
-                        ocr = jarticle["ocr"]
-                        page = int(jarticle["page"])
-            except:
-                if 'britishnewspaper' in search_result.url:
-                    page = int(search_result.url.split('/')[-1])
-                    ocr = article_item["ocr"]
+            if 'britishnewspaper' in search_result.url:
+                page = int(search_result.url.split('/')[-1])
+                ocr = article_item["ocr"]
             candidate_document = CandidateDocument(title=search_result.title,
                                                    url=search_result.url,
                                                    description=search_result.description,

@@ -382,9 +382,9 @@ class GeneralBNASpider(Spider):
 class BNASpiderWithLogin(GeneralBNASpider):
     name = "BNAWithLogin"
 
-    def __init__(self, search_terms, login_details, generate_json=False, split=None, recovery=False,
+    def __init__(self, search_terms, login_details, advanced=False, generate_json=False, split=None, recovery=False,
                  *args, **kwargs):
-        super().__init__(search_terms, generate_json, split, recovery, *args, **kwargs)
+        super().__init__(search_terms, advanced, generate_json, split, recovery, *args, **kwargs)
         self.login_details = login_details
 
     def start_requests(self):
@@ -424,7 +424,7 @@ class BNASpiderWithLogin(GeneralBNASpider):
 
     def parse_details(self, url, cookies):
         link = url.split('bl')[1]
-        ocr_text = get_ocr_bna(url, cookies)
+        ocr_text = get_ocr_bna(url, self.login_details, cookies)
         if ocr_text is None:
             ocr_text = ''
         download_url = 'https://www.britishnewspaperarchive.co.uk/viewer/download/bl' + link
@@ -488,7 +488,11 @@ class BNACountSpider(GeneralBNASpider):
             yield scrapy.Request(search["url"], meta={"search": search})
 
     def parse(self, response, **kwargs):
-        yield self.count_articles(response)
+        current_index = self.n_search
+        self.n_search += 1
+        resp = self.count_articles(response)
+        resp["search_index"] = current_index
+        yield resp
 
 
 def initialize_search_file():
