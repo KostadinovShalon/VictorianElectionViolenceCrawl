@@ -1,6 +1,6 @@
-from Crawler.utils.databasemodels import PortalDocument
+from Crawler.db.databasemodels import PortalDocument
 from FilesHandler.BNAHandler import BNAHandler
-from Crawler.utils.dbutils import session_scope
+from Crawler.db.dbutils import session_scope
 import tqdm
 
 with session_scope() as session:

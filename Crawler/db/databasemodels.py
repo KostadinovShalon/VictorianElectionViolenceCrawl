@@ -1,5 +1,5 @@
 from sqlalchemy import Column, Integer, String, DateTime, Date, ForeignKey, Boolean
-from Crawler import Base
+from db_session import Base
 
 
 class ArchiveSearch(Base):

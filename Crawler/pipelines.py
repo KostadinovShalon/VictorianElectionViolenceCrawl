@@ -1,29 +1,31 @@
 # -*- coding: utf-8 -*-
 import re
 import json
-from Crawler.utils.databasemodels import ArchiveSearchResult, CandidateDocument
-from Crawler.utils import dbconn
+from Crawler.db.databasemodels import ArchiveSearchResult, CandidateDocument
+from Crawler.db import dbconn
 import datetime
 from Crawler.items import ArticleItem
-from Crawler.utils.dbutils import session_scope
+from Crawler.db.dbutils import session_scope
 
 
 class NewsPipeline:
 
     def process_item(self, item, spider):
-        if spider.name == 'BNA':
-            try:
-                if spider.counting:
-                    identifier = item["identifier"]
-                    article_item = item["search_count"]
-                    print(f'Articles in search "{identifier} [{article_item.archive_date_start} - '
-                          f'{article_item.archive_date_end}]": {article_item.results_count}')
-                    with session_scope() as session:
-                        dbconn.insert_search(session, article_item)
-                else:
-                    process_bna_item(item)
-            except AttributeError:
+        try:
+            if spider.name == 'BNACounting':
+                identifier = item["identifier"]
+                article_item = item["search_count"]
+                print(f'Articles in search "{identifier} [{article_item.archive_date_start} - '
+                      f'{article_item.archive_date_end}]": {article_item.results_count}')
+                with session_scope() as session:
+                    dbconn.insert_search(session, article_item)
+                return article_item
+            else:
                 process_bna_item(item)
+                return item
+        except AttributeError:
+            process_bna_item(item)
+            return item
 
 
 def process_bna_item(page_item):

@@ -1,5 +1,5 @@
 from datetime import datetime
-from Crawler.utils.databasemodels import CandidateDocument, PortalDocument
+from Crawler.db.databasemodels import CandidateDocument, PortalDocument
 
 
 def insert_search(session, archive_search):

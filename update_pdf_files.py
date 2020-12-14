@@ -5,9 +5,9 @@ import traceback
 import requests
 
 from Crawler.utils import bna_login_utils as login
-from Crawler.utils.databasemodels import PortalDocument, CandidateDocument
-from Crawler.utils.dbconn import update_page_url, update_art_url, update_candidate
-from Crawler.utils.dbutils import session_scope
+from Crawler.db.databasemodels import PortalDocument, CandidateDocument
+from Crawler.db.dbconn import update_page_url, update_art_url, update_candidate
+from Crawler.db.dbutils import session_scope
 from FilesHandler.BNAHandler import BNAHandler
 
 nargs = len(sys.argv)

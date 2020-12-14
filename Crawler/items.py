@@ -22,6 +22,8 @@ class PageItem(scrapy.Item):
     end_date = scrapy.Field()
     search_id = scrapy.Field()
     generate_json = scrapy.Field()
+    total_articles = scrapy.Field()
+    search_index = scrapy.Field()
 
 
 class ArticleItem(scrapy.Item):

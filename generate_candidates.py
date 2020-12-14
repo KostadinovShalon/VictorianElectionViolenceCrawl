@@ -1,5 +1,5 @@
-from Crawler.utils.dbutils import session_scope
-from Crawler.utils.databasemodels import ArchiveSearchResult, CandidateDocument
+from Crawler.db.dbutils import session_scope
+from Crawler.db.databasemodels import ArchiveSearchResult, CandidateDocument
 import csv
 import os
 

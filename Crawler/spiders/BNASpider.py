@@ -1,540 +1,494 @@
 # -*- coding: utf-8 -*-
+import csv
+import json
 from datetime import timedelta, datetime
+
+import scrapy
+from bs4 import BeautifulSoup
 from dateutil.relativedelta import relativedelta
 from scrapy.spiders import Spider
-from bs4 import BeautifulSoup
-from Crawler.items import PageItem
-import scrapy
-import os
-import csv
-from Crawler.utils.databasemodels import ArchiveSearch, ArchiveSearchCount
-from Crawler.utils import dbconn
-from Crawler.utils import bna_login_utils as login
-from Crawler.utils.dbutils import session_scope
-from Crawler.utils.ocr import get_ocr_bna
 from w3lib.html import remove_tags
-from openpyxl import load_workbook
-from Crawler.utils.advanced_search import AdvancedSearch
-import json
+
+from Crawler.items import PageItem
+from Crawler.db import dbconn
+from Crawler.db.databasemodels import ArchiveSearch, ArchiveSearchCount
+from Crawler.db.dbutils import session_scope
+from Crawler.utils import headers
+from Crawler.utils.ocr import get_ocr_bna
+from Crawler.utils.search_terms import RecoveryAdvancedSearchTerms, AdvancedSearchTerms, RecoverySearchTerms
 
 
-class BNASpider(Spider):
-    with session_scope() as session:
-        name = "BNA"
-        allowed_domains = ['britishnewspaperarchive.co.uk']
-        search_url = 'https://www.britishnewspaperarchive.co.uk/search/results'
-        SITE_NAME = 'britishnewspaperarchive'
-        SLASH = '/'
-        searchs = []
-        n_search = 0
+class GeneralBNASpider(Spider):
+    name = "BNA"
+    allowed_domains = ['britishnewspaperarchive.co.uk']
+    search_url = 'https://www.britishnewspaperarchive.co.uk/search/results'
+    site_name = 'britishnewspaperarchive'
 
-        filename = 'Crawler/spiders/BNA_search_input.csv'
+    page_count = 0
 
-        fast = False
-        generate_json = False
-        advanced = False
-        url_count = 0
-        recovery = False
-        start_from_row = 0
-        recovery_search_id = 0
-        recover_url = None
-        counting = False
-        split = None
-        rec_date_partition = -1
+    # todo: ask to user if want to recover fast or slow
+    # TODO: change recovery implementation to multi-entries
+    # TODO: CREATE FAST, SLOW, AND COUNT SPIDERS
 
-        advanced_search_filepath = 'Crawler/spiders/BNA_advanced_search.xlsx'
+    def __init__(self, search_terms, advanced=False, generate_json=False, split=None, recovery=False,
+                 *args, **kwargs):
+        super(GeneralBNASpider, self).__init__(*args, **kwargs)
+        self.searches = []
+        self.n_search = 0
+        self.generate_json = generate_json
+        self.headers = headers
 
-        page_count = 0
+        self.url_count = 0
+        self.start_from_row = 0
+        self.recover_url = None
+        self.rec_date_partition = -1
+        self.recovery = recovery
 
-        def __str__(self):
-            return "Spider details: " + json.dumps({
-                'name': self.name,
-                'allowed domains': self.allowed_domains,
-                'search_url': self.search_url,
-                'filename': self.filename,
-                'mode': 'recovery' if self.recovery else 'fast' if self.fast else 'counting' if self.counting else
-                'slow',
-                'generate_json': self.generate_json,
-                'search': 'advanced' if self.advanced else 'basic',
-                'split': self.split
-            }, indent=2)
+        self.search_terms = search_terms
+        self.advanced = advanced
+        self.page_count = 0
+        self.split = None
+        self.total_articles = 0
 
-        def __init__(self, mode='slow', generate_json='false', search='basic', split='none', download_delay=2,
-                     *args, **kwargs):
-            super(BNASpider, self).__init__(*args, **kwargs)
-            self.download_delay = float(download_delay)
-            if mode == "recovery":
-                self.recovery = True
-                with open('recovery', 'r') as recovery_file:
-                    lines = recovery_file.read().splitlines()
-                    self.start_from_row = int(lines[0])
-                    self.recovery_search_id = int(lines[1])
-                    self.fast = lines[2] == "True"
-                    if self.fast:
-                        self.mode = "fast"
-                    else:
-                        self.mode = "slow"
-                    self.generate_json = lines[3] == "True"
-                    self.advanced = lines[4] == "True"
-                    print(self.advanced)
-                    self.recover_url = lines[5]
-                    self.split = lines[6]
-                    self.rec_date_partition = int(lines[7])
-            else:
-                if mode == "fast":
-                    self.fast = True
-                elif mode == "count":
-                    self.counting = True
-                elif mode != "slow":
-                    raise Exception('Not supported mode')
-                if generate_json == 'true':
-                    self.generate_json = True
-                elif generate_json != 'false':
-                    raise Exception('Not supported generate_json value')
-                if search == 'advanced':
-                    self.advanced = True
-                elif search != 'basic':
-                    raise Exception('Search mode can only be either advanced or basic')
-                try:
-                    self.split = int(split)
-                except ValueError:
-                    if split == 'day' or split == 'week' or split == 'month' or split == 'year':
-                        self.split = split
-                    elif split != 'none':
-                        raise Exception('Not supported split. Admited values: day, week, month, year')
-            print(self)
-            self.page_count = 0
+        try:
+            self.split = int(split)
+        except ValueError:
+            if split == 'day' or split == 'week' or split == 'month' or split == 'year':
+                self.split = split
+            elif split != 'none':
+                raise Exception('Not supported split. Admited values: day, week, month, year')
+        except TypeError:
+            if split is not None:
+                raise Exception('Not supported split. Admited values: day, week, month, year')
 
-            if self.advanced:
-                print('Reading advanced search input file\n')
-                wb = load_workbook(filename=self.advanced_search_filepath, read_only=True)
-                ws = wb['Search']
-                count = 0
-                first = True
-                print('URLS:')
-                for row in list(ws.rows)[self.start_from_row + 1:]:
-                    empty = True
-                    for j in range(0, 3):
-                        if row[j].value is not None:
-                            empty = False
-                            break
-                    if not empty:
-                        advanced_search = AdvancedSearch.from_row(row)
-                        td = advanced_search.todate
-                        fd = advanced_search.fromdate
-                        if td is not None and fd is not None:
-                            td_date = datetime.strptime(td, '%Y-%m-%d')
-                            fd_date = datetime.strptime(fd, '%Y-%m-%d')
-                            search_dates = self.split_dates(fd_date, td_date)
-                            date_pairs = list(search_dates)
-                            date_partition = self.rec_date_partition
-                            for date_pair in date_pairs[self.rec_date_partition + 1:]:
-                                derived_search = AdvancedSearch.copy_item(advanced_search)
-                                dfd = date_pair[0]
-                                dtd = date_pair[1]
-                                derived_search.fromdate = '%04d-%02d-%02d' % (dfd.year, dfd.month, dfd.day)
-                                derived_search.todate = '%04d-%02d-%02d' % (dtd.year, dtd.month, dtd.day)
-                                url = self.recover_url if self.recovery and first else derived_search.get_url()
-                                first = False
-                                if not self.counting:
-                                    archive_search = ArchiveSearch(archive=self.SITE_NAME,
-                                                                   search_text=derived_search.get_basic_search_string(),
-                                                                   archive_date_start=derived_search.fromdate,
-                                                                   archive_date_end=derived_search.todate,
-                                                                   search_batch_id=self.name,
-                                                                   added_date_start=derived_search.fromaddeddate,
-                                                                   added_date_end=derived_search.toaddeddate,
-                                                                   article_type=derived_search.article_type,
-                                                                   exact_phrase=derived_search.exact_phrase,
-                                                                   exact_search=derived_search.exact_search,
-                                                                   exclude_words=derived_search.exclude_words,
-                                                                   front_page=derived_search.front_page,
-                                                                   newspaper_title=derived_search.newspaper_title,
-                                                                   publication_place=derived_search.place,
-                                                                   search_all_words=derived_search.all_words,
-                                                                   sort_by=derived_search.sort,
-                                                                   tags=derived_search.tags)
-                                else:
-                                    archive_search = ArchiveSearchCount(archive=self.SITE_NAME,
-                                                                        search_text=derived_search.
-                                                                        get_basic_search_string(),
-                                                                        archive_date_start=derived_search.fromdate,
-                                                                        archive_date_end=derived_search.todate,
-                                                                        search_batch_id=self.name,
-                                                                        added_date_start=derived_search.fromaddeddate,
-                                                                        added_date_end=derived_search.toaddeddate,
-                                                                        article_type=derived_search.article_type,
-                                                                        exact_phrase=derived_search.exact_phrase,
-                                                                        exact_search=derived_search.exact_search,
-                                                                        exclude_words=derived_search.exclude_words,
-                                                                        front_page=derived_search.front_page,
-                                                                        newspaper_title=derived_search.newspaper_title,
-                                                                        publication_place=derived_search.place,
-                                                                        search_all_words=derived_search.all_words,
-                                                                        sort_by=derived_search.sort,
-                                                                        tags=derived_search.tags)
-                                self.searchs.append(dict(url=url,
-                                                         search_number=count,
-                                                         date_partition=date_partition,
-                                                         search_db=archive_search,
-                                                         advanced_search=derived_search))
-                                date_partition += 1
-                                print(' -', derived_search.get_url())
-                        else:
-                            url = self.recover_url if self.recovery and first else advanced_search.get_url()
-                            first = False
-                            if not self.counting:
-                                archive_search = ArchiveSearch(archive=self.SITE_NAME,
-                                                               search_text=advanced_search.get_basic_search_string(),
-                                                               archive_date_start=fd if fd is not None else '',
-                                                               archive_date_end=td if td is not None else '',
-                                                               search_batch_id=self.name,
-                                                               added_date_start=advanced_search.fromaddeddate,
-                                                               added_date_end=advanced_search.toaddeddate,
-                                                               article_type=advanced_search.article_type,
-                                                               exact_phrase=advanced_search.exact_phrase,
-                                                               exact_search=advanced_search.exact_search,
-                                                               exclude_words=advanced_search.exclude_words,
-                                                               front_page=advanced_search.front_page,
-                                                               newspaper_title=advanced_search.newspaper_title,
-                                                               publication_place=advanced_search.place,
-                                                               search_all_words=advanced_search.all_words,
-                                                               sort_by=advanced_search.sort,
-                                                               tags=advanced_search.tags)
-                            else:
-                                archive_search = ArchiveSearchCount(archive=self.SITE_NAME,
-                                                                    search_text=advanced_search.
-                                                                    get_basic_search_string(),
-                                                                    archive_date_start=fd if fd is not None else '',
-                                                                    archive_date_end=td if td is not None else '',
-                                                                    search_batch_id=self.name,
-                                                                    added_date_start=advanced_search.fromaddeddate,
-                                                                    added_date_end=advanced_search.toaddeddate,
-                                                                    article_type=advanced_search.article_type,
-                                                                    exact_phrase=advanced_search.exact_phrase,
-                                                                    exact_search=advanced_search.exact_search,
-                                                                    exclude_words=advanced_search.exclude_words,
-                                                                    front_page=advanced_search.front_page,
-                                                                    newspaper_title=advanced_search.newspaper_title,
-                                                                    publication_place=advanced_search.place,
-                                                                    search_all_words=advanced_search.all_words,
-                                                                    sort_by=advanced_search.sort,
-                                                                    tags=advanced_search.tags)
-                            self.searchs.append(dict(url=url,
-                                                     search_number=count,
-                                                     date_partition=0,
-                                                     search_db=archive_search,
-                                                     advanced_search=advanced_search))
-                            print(' - ', advanced_search.get_url())
-                    count += 1
-                    self.rec_date_partition = -1
-                wb.close()
-            else:
-                if os.path.exists(self.filename):
-                    print('Reading search input file')
-                    with open(self.filename, 'r') as csv_file:
-                        reader = csv.DictReader(csv_file)
-                        search_keywords = [row for row in reader]
-                    print(search_keywords)
-                else:
-                    raise Exception('BNA Spider ERROR: ' + self.filename + ' was not found. Check if it exists.')
-                count = 0
-                if self.recovery:
-                    print("Start from row ", self.start_from_row)
-                print('SEARCHES: ')
-                first = True
-                for i in range(len(search_keywords)):
-                    if self.recovery:
-                        if i < self.start_from_row:
-                            continue
-                    fd = search_keywords[i]['start day(xxxx-xx-xx)']
-                    td = search_keywords[i]['end day(xxxx-xx-xx)']
-                    fd_date = datetime.strptime(fd, '%Y-%m-%d')
+        if recovery:
+            assert isinstance(search_terms, RecoveryAdvancedSearchTerms) or \
+                   isinstance(search_terms, RecoverySearchTerms)
+            self._read_recovery_file()
+        print(search_terms)
+        if self.advanced:
+            print("In generate advanced")
+            self._generate_advanced_searches()
+        else:
+            print("Number of searches:", len(search_terms))
+            self._generate_basic_searches()
+
+    def _generate_advanced_searches(self):
+        first = True
+        search_terms = self.search_terms
+        if not isinstance(search_terms, list):
+            search_terms = [search_terms]
+        for count, advanced_search in enumerate(search_terms):
+            if self.recovery:
+                if count < self.start_from_row:
+                    continue
+            if advanced_search.all_words is not None or advanced_search.some_words is not None or \
+                    advanced_search.exact_phrase is not None:
+                td = advanced_search.end_date
+                fd = advanced_search.start_date
+                if td is not None and fd is not None:
                     td_date = datetime.strptime(td, '%Y-%m-%d')
+                    fd_date = datetime.strptime(fd, '%Y-%m-%d')
                     search_dates = self.split_dates(fd_date, td_date)
                     date_pairs = list(search_dates)
                     date_partition = self.rec_date_partition
-
-                    for date_pair in date_pairs[date_partition + 1:]:
-                        date_partition += 1
-                        dfd = '%04d-%02d-%02d' % (date_pair[0].year, date_pair[0].month, date_pair[0].day)
-                        dtd = '%04d-%02d-%02d' % (date_pair[1].year, date_pair[1].month, date_pair[1].day)
-                        url = self.recover_url if self.recovery and first else (self.search_url + '/' + dfd + '/' +
-                                                                                dtd + '?basicsearch=' +
-                                                                                search_keywords[i]['keyword'] +
-                                                                                '&retrievecountrycounts=false&page=0')
+                    for date_pair in date_pairs[self.rec_date_partition + 1:]:
+                        derived_search = advanced_search.copy()
+                        dfd = date_pair[0]
+                        dtd = date_pair[1]
+                        derived_search.start_date = '%04d-%02d-%02d' % (dfd.year, dfd.month, dfd.day)
+                        derived_search.end_date = '%04d-%02d-%02d' % (dtd.year, dtd.month, dtd.day)
+                        url = self.recover_url if self.recovery and first else derived_search.get_url()
                         first = False
-                        if not self.counting:
-                            archive_search = ArchiveSearch(archive="britishnewspaperarchive",
-                                                           search_text=search_keywords[i]['keyword'],
-                                                           archive_date_start=dfd,
-                                                           archive_date_end=dtd,
-                                                           search_batch_id="BNA")
-                        else:
-                            archive_search = ArchiveSearchCount(archive="britishnewspaperarchive",
-                                                                search_text=search_keywords[i]['keyword'],
-                                                                archive_date_start=dfd,
-                                                                archive_date_end=dtd,
-                                                                search_batch_id="BNA")
-                        self.searchs.append(dict(url=url,
-                                                 search_number=count,
-                                                 date_partition=date_partition,
-                                                 search_db=archive_search,
-                                                 advanced_search=None))
-                        print(' - ', url)
-                    count += 1
-                    self.rec_date_partition = -1
-
-        def start_requests(self):
-            if self.counting:
-                for search in self.searchs:
-                    yield scrapy.Request(search["url"], meta={"search": search},
-                                         callback=self.count_callback)
-            else:
-                if not self.recovery:
-                    initialize_search_file()
-                if not self.fast:
-                    print('BNA Spider: Logging in')
-                    yield scrapy.FormRequest(url=login.login_url,
-                                             headers=login.headers,
-                                             meta={
-                                                 'dont_redirect': True,
-                                                 'handle_httpstatus_list': [302]
-                                             },
-                                             formdata={
-                                                 'Username': login.username,
-                                                 'Password': login.password,
-                                                 'RememberMe': login.remember_me,
-                                                 'NextPage': login.next_page
-                                             },
-                                             callback=self.after_login,
-                                             dont_filter=False)
+                        archive_search = self.get_archive_search(derived_search)
+                        self.searches.append(dict(url=url,
+                                                  search_number=count,
+                                                  date_partition=date_partition,
+                                                  search_db=archive_search,
+                                                  advanced_search=derived_search))
+                        date_partition += 1
                 else:
-                    yield scrapy.Request(self.searchs[0]["url"], meta={"search": self.searchs[0]})
+                    url = self.recover_url if self.recovery and first else advanced_search.get_url()
+                    first = False
+                    archive_search = self.get_archive_search(advanced_search)
+                    self.searches.append(dict(url=url,
+                                              search_number=count,
+                                              date_partition=0,
+                                              search_db=archive_search,
+                                              advanced_search=advanced_search))
+            self.rec_date_partition = -1
 
-        def after_login(self, response):
-            cookie = None
-            for cookie_item in response.headers.getlist('Set-Cookie'):
-                cookie = str(cookie_item).split(';')[0].split('session_0=')[1]
-                if cookie != '':
-                    break
-            session_cookies = {'session_0': cookie}
-            if cookie == '':
-                print('BNA Spider: Problem trying to logging in (Cookie not found)')
+    def get_archive_search(self, search):
+        if isinstance(search, AdvancedSearchTerms):
+            return ArchiveSearch(archive=self.site_name,
+                                 search_text=search.get_basic_search_string(),
+                                 archive_date_start=search.start_date if search.start_date is not None else '',
+                                 archive_date_end=search.end_date if search.end_date is not None else '',
+                                 search_batch_id=self.name,
+                                 added_date_start=search.added_start_date,
+                                 added_date_end=search.added_end_date,
+                                 article_type=search.article_type,
+                                 exact_phrase=search.exact_phrase,
+                                 exact_search=search.exact_search,
+                                 exclude_words=search.exclude_words,
+                                 front_page=search.front_page,
+                                 newspaper_title=search.newspaper_title,
+                                 publication_place=search.publication_place,
+                                 search_all_words=search.all_words,
+                                 sort_by=search.sort_by,
+                                 tags=search.tags)
+        else:
+            return ArchiveSearch(archive=self.site_name,
+                                 search_text=search.search_text,
+                                 archive_date_start=search.start_date,
+                                 archive_date_end=search.end_date,
+                                 search_batch_id=self.name)
+
+    def _generate_basic_searches(self):
+        first = True
+        search_terms = self.search_terms
+        if not isinstance(search_terms, list):
+            search_terms = [search_terms]
+        for count, search_term in enumerate(search_terms):
+            if self.recovery:
+                if count < self.start_from_row:
+                    continue
+            fd = search_term.start_date
+            td = search_term.end_date
+            fd = datetime.strptime(fd, '%Y-%m-%d')
+            td = datetime.strptime(td, '%Y-%m-%d')
+            search_dates = self.split_dates(fd, td)
+            date_pairs = list(search_dates)
+            date_partition = self.rec_date_partition
+
+            for date_pair in date_pairs[date_partition + 1:]:
+                date_partition += 1
+                derived_search = search_term.copy()
+                derived_search.start_date = '%04d-%02d-%02d' % (date_pair[0].year, date_pair[0].month, date_pair[0].day)
+                derived_search.end_date = '%04d-%02d-%02d' % (date_pair[1].year, date_pair[1].month, date_pair[1].day)
+                url = self.recover_url if self.recovery and first else \
+                    f"{self.search_url}/{derived_search.start_date}/{derived_search.end_date}" \
+                    f"?basicsearch={search_term.search_text}&retrievecountrycounts=false&page=0 "
+                first = False
+                archive_search = self.get_archive_search(derived_search)
+                self.searches.append(dict(url=url,
+                                          search_number=count,
+                                          date_partition=date_partition,
+                                          search_db=archive_search,
+                                          advanced_search=None))
+            self.rec_date_partition = -1
+
+    def _read_recovery_file(self):
+        try:
+            with open(f'recovery.{self.search_terms.id}', 'r') as recovery_file:
+                lines = recovery_file.read().splitlines()
+                self.start_from_row = int(lines[0])
+                self.generate_json = lines[3] == "True"
+                self.advanced = lines[4] == isinstance(self.search_terms, AdvancedSearchTerms)
+                self.recover_url = lines[5]
+                self.split = lines[6]
+                self.rec_date_partition = int(lines[7])
+        except FileNotFoundError:
+            raise Exception(f"Recovery file for search id: {self.search_terms.id} not found")
+
+    def __str__(self):
+        return "Spider details: " + json.dumps({
+            'name': self.name,
+            'allowed domains': self.allowed_domains,
+            'search_url': self.search_url,
+            'mode': 'slow',
+            'search': 'advanced' if self.advanced else 'basic',
+            'split': self.split
+        }, indent=2)
+
+    def start_requests(self):
+        if not self.recovery:
+            initialize_search_file()
+        yield scrapy.Request(self.searches[0]["url"], meta={"search": self.searches[0]})
+
+    def count_articles(self, response):
+        search = response.meta['search']
+        if self.advanced:
+            identifier = search["advanced_search"].get_basic_search_string()
+        else:
+            identifier = search["search_db"].search_text
+
+        article_amounts = response.selector.css('#dateFacet div#date a.list-group-item')
+        self.total_articles = 0
+        if article_amounts is not None and len(article_amounts) > 0:
+            for article_amount in article_amounts:
+                self.total_articles += int(article_amount.css('span::text').extract_first().replace(',', ''))
+        else:
+            count_string = response.selector.css('#dateFacet div#date div span:last-child::text').extract_first()
+            if count_string is None:
+                self.total_articles = 0
             else:
-                print('BNA Spider: Successful login. \n')
-                yield scrapy.Request(self.searchs[0]["url"], meta={"search": self.searchs[0]},
-                                     cookies=session_cookies)
+                self.total_articles = int(count_string[1:][:-1])
+        archive_search = search["search_db"]
+        archive_search.results_count = self.total_articles
+        return dict(identifier=identifier, search_count=archive_search)
 
-        def count_callback(self, response):
-            search = response.meta['search']
+    def parse(self, response, **kwargs):
+        print("Page count:", self.page_count)
+        self.page_count += 1
+
+        if self.page_count == 1:
+            self.count_articles(response)
+
+        session_cookies = self.get_session_cookies(response)
+        search = response.meta['search']
+        advanced_search = search["advanced_search"]
+        archive_search = search["search_db"]
+        # if self.advanced:
+        #     print(f'Crawling page {self.page_count} - "{advanced_search.get_basic_search_string()} '
+        #           f'[{advanced_search.fromdate} - {advanced_search.todate}]"')
+        # else:
+        #     print(f'Crawling page {self.page_count} - "{archive_search.search_text} '
+        #           f'[{archive_search.archive_date_start} - {archive_search.archive_date_end}]"')
+
+        search_id = archive_search.id
+        if search_id == 0 or search_id is None:
+            with session_scope() as session:
+                dbconn.insert_search(session, archive_search)
+                print("Search inserted into the database", "Search id: ", archive_search.id)
+                search_id = archive_search.id
+                session.expunge(archive_search)
+        search["search_db"].id = search_id
+
+        all_articles = response.selector.css('article.bna-card')
+        for article in all_articles:
+            # To get the title text
+            page = PageItem()
+            page["search_index"] = self.n_search
+            page['site'] = self.site_name
+            page['generate_json'] = self.generate_json
+            page['search_id'] = search_id
+            page['total_articles'] = self.total_articles
             if self.advanced:
-                identifier = search["advanced_search"].get_basic_search_string()
+                page['keyword'] = advanced_search.get_search_input()
+                start_date = advanced_search.start_date
+                end_date = advanced_search.end_date
+                page['start_date'] = start_date if start_date is not None else ''
+                page['end_date'] = end_date if end_date is not None else ''
             else:
-                identifier = search["search_db"].search_text
+                page['keyword'] = archive_search.search_text
+                page['start_date'] = archive_search.archive_date_start
+                page['end_date'] = archive_search.archive_date_end
+            this_title = article.css('h4.bna-card__title')
 
-            article_amounts = response.selector.css('#dateFacet div#date a.list-group-item')
-            article_count = 0
-            if article_amounts is not None and len(article_amounts) > 0:
-                for article_amount in article_amounts:
-                    article_count += int(article_amount.css('span::text').extract_first().replace(',', ''))
+            article_detail_url = response.urljoin(this_title.css('a::attr(href)').extract_first())
+            page['download_page'] = article_detail_url
+            download_url, ocr = self.parse_details(article_detail_url, cookies=session_cookies)
+            page['download_url'] = download_url
+            page['ocr'] = ocr
+            page['title'] = this_title.css('a::text').extract_first().strip()
+            page['hint'] = remove_tags(this_title.css('a::attr(title)').extract_first().strip())
+            page['description'] = ".".join(article.css('p.bna-card__body__description::text').extract()).strip()
+
+            meta = BeautifulSoup(article.css('div.bna-card__meta').extract_first(), 'html.parser')
+            page['publish'] = meta.small.span.get_text().split("Published:")[1].strip()
+            for item in meta.small.span.find_next_siblings("span"):
+                item_str = item.get_text()
+                if 'Newspaper' in item_str:
+                    page['newspaper'] = item_str.split('Newspaper:\n')[1]
+                elif 'County' in item_str:
+                    # print item_str.split(('County:\n')[1])
+                    page['county'] = item_str.split('\nCounty: \r\n')[1]
+                elif 'Type' in item_str:
+                    page['type'] = item_str.split('\nType:')[1]
+                elif 'Word' in item_str:
+                    # print item_str.split('\nWords: \r\n')
+                    page['word'] = item_str.split('\nWords: \r\n')[1]
+                elif 'Page' in item_str:
+                    # print item_str.split('\nPage:')
+                    page['page'] = item_str.split('\nPage:')[1]
+                elif 'Tag' in item_str:
+                    # print item_str.split('\nTags:\n')
+                    page['tag'] = item_str.split('\nTags:\n')[1]
+                else:
+                    print('Error')
+            yield page
+
+        next_page = response.selector.css('a[title="Forward one page"]::attr(href)').extract_first()
+        search["search_db"] = archive_search
+        if next_page is not None:
+            next_page_full_url = response.urljoin(next_page)
+            print("Next page full url", next_page_full_url)
+            self.create_recovery_file(search_id, next_page_full_url,
+                                      search["search_number"], search["date_partition"])
+            print("Yielding new request")
+            yield scrapy.Request(next_page_full_url, meta={"search": search}, headers=self.headers)
+        else:
+            self.page_count = 0
+            self.n_search += 1
+            if self.n_search < len(self.searches):
+                yield scrapy.Request(self.searches[self.n_search]["url"],
+                                     meta={"search": self.searches[self.n_search]},
+                                     headers=self.headers)
+
+    def get_session_cookies(self, response):
+        return {}
+
+    def parse_details(self, url, cookies):
+        link = url.split('bl')[1]
+        download_url = 'https://www.britishnewspaperarchive.co.uk/viewer/download/bl' + link
+        return download_url, ''
+
+    def create_recovery_file(self, last_search, next_page, row, last_date_partition):
+        with open('recovery', 'w+') as page_err:
+            values = [str(row + self.start_from_row),
+                      str(last_search),
+                      "False",
+                      str(self.generate_json),
+                      str(self.advanced),
+                      next_page,
+                      str(self.split),
+                      str(last_date_partition)]
+            separator = '\n'
+            page_err.write(separator.join(values))
+
+    def split_dates(self, from_date, to_date):
+        if self.split is None:
+            yield from_date, to_date
+        else:
+            if isinstance(self.split, int):
+                if self.split > 0:
+                    time_delta = relativedelta(days=self.split)
+                else:
+                    yield from_date, to_date
+                    return
+            elif self.split == 'day':
+                time_delta = relativedelta(days=1)
+            elif self.split == 'week':
+                time_delta = relativedelta(weeks=1)
+            elif self.split == 'month':
+                time_delta = relativedelta(months=1)
             else:
-                count_string = response.selector.css('#dateFacet div#date div span:last-child::text').extract_first()
-                if count_string is None:
-                    article_count = 0
-                else:
-                    article_count = int(count_string[1:][:-1])
-            archive_search = search["search_db"]
-            archive_search.results_count = article_count
-            yield dict(identifier=identifier, search_count=archive_search)
-
-        def parse(self, response, **kwargs):
-            self.page_count += 1
-            session_cookies = {}
-            if not self.fast:
-                cookie_str = str(response.request.headers.getlist('Cookie')[0]).split(';')[0].split('session_0=')[1]
-                session_cookies = {'session_0': cookie_str}
-            search = response.meta['search']
-            advanced_search = search["advanced_search"]
-            archive_search = search["search_db"]
-            if self.advanced:
-                print(f'Crawling page {self.page_count} - "{advanced_search.get_basic_search_string()} '
-                      f'[{advanced_search.fromdate} - {advanced_search.todate}]"')
-            else:
-                print(f'Crawling page {self.page_count} - "{archive_search.search_text} '
-                      f'[{archive_search.archive_date_start} - {archive_search.archive_date_end}]"')
-
-            search_id = archive_search.id
-            if search_id == 0 or search_id is None:
-                avoid_appending = False
-                if self.page_count == 1 and self.recovery:
-                    search_id = self.recovery_search_id
-                    avoid_appending = True
-                else:
-                    dbconn.insert_search(self.session, archive_search)
-                    print("Search inserted into the database")
-                    search_id = archive_search.id
-                if not avoid_appending:
-                    self.write_search(archive_search, advanced_search)
-
-            all_articles = response.selector.css('article.bna-card')
-            for article in all_articles:
-                # To get the title text
-                page = PageItem()
-                page['site'] = self.SITE_NAME
-                page['generate_json'] = self.generate_json
-                page['search_id'] = search_id
-                if self.advanced:
-                    page['keyword'] = advanced_search.get_search_input()
-                    start_date = advanced_search.fromdate
-                    end_date = advanced_search.todate
-                    page['start_date'] = start_date if start_date is not None else ''
-                    page['end_date'] = end_date if end_date is not None else ''
-                else:
-                    page['keyword'] = archive_search.search_text
-                    page['start_date'] = archive_search.archive_date_start
-                    page['end_date'] = archive_search.archive_date_end
-                this_title = article.css('h4.bna-card__title')
-
-                article_detail_url = response.urljoin(this_title.css('a::attr(href)').extract_first())
-                page['download_page'] = article_detail_url
-                download_url, ocr = self.parse_details(article_detail_url, cookies=session_cookies)
-                page['download_url'] = download_url
-                page['ocr'] = ocr
-                page['title'] = this_title.css('a::text').extract_first().strip()
-                page['hint'] = remove_tags(this_title.css('a::attr(title)').extract_first().strip())
-                page['description'] = ".".join(article.css('p.bna-card__body__description::text').extract()).strip()
-
-                meta = BeautifulSoup(article.css('div.bna-card__meta').extract_first(), 'html.parser')
-                page['publish'] = meta.small.span.get_text().split("Published:")[1].strip()
-                for item in meta.small.span.find_next_siblings("span"):
-                    item_str = item.get_text()
-                    if 'Newspaper' in item_str:
-                        page['newspaper'] = item_str.split('Newspaper:\n')[1]
-                    elif 'County' in item_str:
-                        # print item_str.split(('County:\n')[1])
-                        page['county'] = item_str.split('\nCounty: \r\n')[1]
-                    elif 'Type' in item_str:
-                        page['type'] = item_str.split('\nType:')[1]
-                    elif 'Word' in item_str:
-                        # print item_str.split('\nWords: \r\n')
-                        page['word'] = item_str.split('\nWords: \r\n')[1]
-                    elif 'Page' in item_str:
-                        # print item_str.split('\nPage:')
-                        page['page'] = item_str.split('\nPage:')[1]
-                    elif 'Tag' in item_str:
-                        # print item_str.split('\nTags:\n')
-                        page['tag'] = item_str.split('\nTags:\n')[1]
-                    else:
-                        print('Error')
-                yield page
-
-            next_page = response.selector.css('a[title="Forward one page"]::attr(href)').extract_first()
-            if next_page is not None:
-                next_page_full_url = response.urljoin(next_page)
-                self.create_recovery_file(search_id, next_page_full_url,
-                                          search["search_number"], search["date_partition"])
-                yield scrapy.Request(next_page_full_url, meta={"search": search}, headers=login.headers)
-            else:
-                self.page_count = 0
-                self.n_search += 1
-                if self.n_search < len(self.searchs):
-                    yield scrapy.Request(self.searchs[self.n_search]["url"],
-                                         meta={"search": self.searchs[self.n_search]},
-                                         headers=login.headers)
-
-        def parse_details(self, url, cookies):
-            link = url.split('bl')[1]
-            ocr_text = ''
-            if not self.fast:
-                ocr_text = get_ocr_bna(url, cookies)
-                if ocr_text is None:
-                    ocr_text = ''
-            download_url = 'https://www.britishnewspaperarchive.co.uk/viewer/download/bl' + link
-            return download_url, ocr_text
-
-        def write_search(self, search, search_identifier=None):
-            with open('search_ids.csv', 'a+') as search_file:
-                writer = csv.writer(search_file)
-                s_id = search.id
-                if s_id is None and self.recovery:
-                    s_id = self.recovery_search_id
-                site = search.archive
-                if self.advanced:
-                    advanced_search = search_identifier
-                    kw = advanced_search.get_search_input()
-                    start_date = advanced_search.fromdate
-                    end_date = advanced_search.todate
-                    writer.writerow([s_id, "{}_{}_{}_{}".format(site, kw, start_date, end_date)])
-                else:
-                    kw = search.search_text
-                    start_date = search.archive_date_start
-                    end_date = search.archive_date_end
-                    writer.writerow([s_id, "{}_{}_{}_{}".format(site, kw, start_date, end_date)])
-
-        def write_searches(self):
-            with open('search_ids.csv', 'wb') as search_file:
-                writer = csv.writer(search_file)
-                writer.writerow(['id', 'filename'])
-                for search in self.searchs:
-                    s_db = search["search_db"]
-                    s_id = s_db.id
-                    site = s_db.archive
-                    if self.advanced:
-                        advanced_search = search["advanced_search"]
-                        kw = advanced_search.get_search_input()
-                        start_date = advanced_search.fromdate
-                        end_date = advanced_search.todate
-                        writer.writerow([s_id, "{}_{}_{}_{}".format(site, kw, start_date, end_date)])
-                    else:
-                        kw = s_db.search_text
-                        start_date = s_db.archive_date_start
-                        end_date = s_db.archive_date_end
-                        writer.writerow([s_id, "{}_{}_{}_{}".format(site, kw, start_date, end_date)])
-
-        def create_recovery_file(self, last_search, next_page, row, last_date_partition):
-            with open('recovery', 'w+') as page_err:
-                values = [str(row + self.start_from_row),
-                          str(last_search),
-                          str(self.fast),
-                          str(self.generate_json),
-                          str(self.advanced),
-                          next_page,
-                          str(self.split),
-                          str(last_date_partition)]
-                separator = '\n'
-                page_err.write(separator.join(values))
-
-        def split_dates(self, from_date, to_date):
-            if self.split is None:
+                time_delta = relativedelta(years=1)
+            if from_date + time_delta > to_date:
                 yield from_date, to_date
             else:
-                if isinstance(self.split, int):
-                    if self.split > 0:
-                        time_delta = relativedelta(days=self.split)
+                aux_date = from_date
+                while aux_date < to_date:
+                    aux_end_date = (aux_date + time_delta) - timedelta(days=1)
+                    if aux_end_date >= to_date:
+                        yield aux_date, to_date
                     else:
-                        yield from_date, to_date
-                        return
-                elif self.split == 'day':
-                    time_delta = relativedelta(days=1)
-                elif self.split == 'week':
-                    time_delta = relativedelta(weeks=1)
-                elif self.split == 'month':
-                    time_delta = relativedelta(months=1)
-                else:
-                    time_delta = relativedelta(years=1)
-                if from_date + time_delta > to_date:
-                    yield from_date, to_date
-                else:
-                    aux_date = from_date
-                    while aux_date < to_date:
-                        aux_end_date = (aux_date + time_delta) - timedelta(days=1)
-                        if aux_end_date >= to_date:
-                            yield aux_date, to_date
-                        else:
-                            aux_start_date = aux_date
-                            yield aux_start_date, aux_end_date
-                        aux_date = aux_end_date + timedelta(days=1)
+                        aux_start_date = aux_date
+                        yield aux_start_date, aux_end_date
+                    aux_date = aux_end_date + timedelta(days=1)
+
+
+class BNASpiderWithLogin(GeneralBNASpider):
+    name = "BNAWithLogin"
+
+    def __init__(self, search_terms, login_details, generate_json=False, split=None, recovery=False,
+                 *args, **kwargs):
+        super().__init__(search_terms, generate_json, split, recovery, *args, **kwargs)
+        self.login_details = login_details
+
+    def start_requests(self):
+        if not self.recovery:
+            initialize_search_file()
+        yield scrapy.FormRequest(url=self.login_details['login_url'],
+                                 headers=self.login_details['headers'],
+                                 meta={
+                                     'dont_redirect': True,
+                                     'handle_httpstatus_list': [302]
+                                 },
+                                 formdata={
+                                     'Username': self.login_details['username'],
+                                     'Password': self.login_details['password'],
+                                     'RememberMe': self.login_details['remember_me'],
+                                     'NextPage': self.login_details['next_page']
+                                 },
+                                 callback=self.after_login,
+                                 dont_filter=False)
+
+    def after_login(self, response):
+        cookie = None
+        for cookie_item in response.headers.getlist('Set-Cookie'):
+            cookie = str(cookie_item).split(';')[0].split('session_0=')[1]
+            if cookie != '':
+                break
+        session_cookies = {'session_0': cookie}
+        if cookie == '':
+            raise Exception('BNA Spider: Problem trying to logging in (Cookie not found)')
+        else:
+            yield scrapy.Request(self.searches[0]["url"], meta={"search": self.searches[0]},
+                                 cookies=session_cookies)
+
+    def get_session_cookies(self, response):
+        cookie_str = str(response.request.headers.getlist('Cookie')[0]).split(';')[0].split('session_0=')[1]
+        return {'session_0': cookie_str}
+
+    def parse_details(self, url, cookies):
+        link = url.split('bl')[1]
+        ocr_text = get_ocr_bna(url, cookies)
+        if ocr_text is None:
+            ocr_text = ''
+        download_url = 'https://www.britishnewspaperarchive.co.uk/viewer/download/bl' + link
+        return download_url, ocr_text
+
+    def create_recovery_file(self, last_search, next_page, row, last_date_partition):
+        with open('recovery', 'w+') as page_err:
+            values = [str(row + self.start_from_row),
+                      str(last_search),
+                      "False",
+                      str(self.generate_json),
+                      str(self.advanced),
+                      next_page,
+                      str(self.split),
+                      str(last_date_partition)]
+            separator = '\n'
+            page_err.write(separator.join(values))
+
+    def __str__(self):
+        return "Spider details: " + json.dumps({
+            'name': self.name,
+            'allowed domains': self.allowed_domains,
+            'search_url': self.search_url,
+            'mode': 'slow',
+            'search': 'advanced' if self.advanced else 'basic',
+            'split': self.split
+        }, indent=2)
+
+
+class BNACountSpider(GeneralBNASpider):
+    name = "BNACounting"
+
+    def get_archive_search(self, search):
+        if isinstance(search, AdvancedSearchTerms):
+            return ArchiveSearchCount(archive=self.site_name,
+                                      search_text=search.get_basic_search_string(),
+                                      archive_date_start=search.start_date if search.start_date is not None else '',
+                                      archive_date_end=search.end_date if search.end_date is not None else '',
+                                      search_batch_id=self.name,
+                                      added_date_start=search.added_start_date,
+                                      added_date_end=search.added_end_date,
+                                      article_type=search.article_type,
+                                      exact_phrase=search.exact_phrase,
+                                      exact_search=search.exact_search,
+                                      exclude_words=search.exclude_words,
+                                      front_page=search.front_page,
+                                      newspaper_title=search.newspaper_title,
+                                      publication_place=search.publication_place,
+                                      search_all_words=search.all_words,
+                                      sort_by=search.sort_by,
+                                      tags=search.tags)
+        else:
+            return ArchiveSearchCount(archive=self.site_name,
+                                      search_text=search.search_text,
+                                      archive_date_start=search.start_date,
+                                      archive_date_end=search.end_date,
+                                      search_batch_id=self.name)
+
+    def start_requests(self):
+        for search in self.searches:
+            yield scrapy.Request(search["url"], meta={"search": search})
+
+    def parse(self, response, **kwargs):
+        yield self.count_articles(response)
 
 
 def initialize_search_file():

@@ -1,4 +1,4 @@
-from Crawler import Session
+from db_session import Session
 
 from contextlib import contextmanager
 
