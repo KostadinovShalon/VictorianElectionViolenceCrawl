@@ -6,14 +6,18 @@ from flask_cors import CORS
 import db_session
 import logging
 import sys
+import configuration
 
 
 crochet.setup()
 
 
-def create_app(test_config=None):
-
-    db_session.change_session_data('root', 'marr1982', '127.0.0.1')
+def create_app():
+    print(configuration.server_variables())
+    print(configuration.bna_variables())
+    print(configuration.db_variables())
+    db_var = configuration.db_variables()
+    db_session.change_session_data(**db_var)
     logging.basicConfig(stream=sys.stderr, level=logging.ERROR)
 
     # create and configure the app
@@ -22,14 +26,6 @@ def create_app(test_config=None):
         SECRET_KEY='dev',
         DATABASE=os.path.join(app.instance_path, 'flaskr.sqlite'),
     )
-
-    if test_config is None:
-        # load the instance config, if it exists, when not testing
-        app.config.from_pyfile('config.py', silent=True)
-    else:
-        # load the test config if passed in
-        app.config.from_mapping(test_config)
-
     # ensure the instance folder exists
     try:
         os.makedirs(app.instance_path)
@@ -38,6 +34,9 @@ def create_app(test_config=None):
 
     from . import search
     app.register_blueprint(search.bp)
+
+    from . import setup
+    app.register_blueprint(setup.bp)
     CORS(app)
 
     return app

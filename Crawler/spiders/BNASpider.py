@@ -16,6 +16,7 @@ from Crawler.db.dbutils import session_scope
 from Crawler.utils import headers
 from Crawler.utils.ocr import get_ocr_bna
 from Crawler.utils.search_terms import RecoveryAdvancedSearchTerms, AdvancedSearchTerms, RecoverySearchTerms
+import configuration
 
 
 class GeneralBNASpider(Spider):
@@ -385,7 +386,10 @@ class BNASpiderWithLogin(GeneralBNASpider):
     def __init__(self, search_terms, login_details, advanced=False, generate_json=False, split=None, recovery=False,
                  *args, **kwargs):
         super().__init__(search_terms, advanced, generate_json, split, recovery, *args, **kwargs)
+        sensible_details = configuration.bna_variables()
         self.login_details = login_details
+        self.login_details['username'] = sensible_details['user']
+        self.login_details['password'] = sensible_details['password']
 
     def start_requests(self):
         if not self.recovery:

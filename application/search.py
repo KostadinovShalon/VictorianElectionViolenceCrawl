@@ -4,11 +4,16 @@ from flask import Blueprint, request, render_template, url_for, redirect, jsonif
 from flask_cors import cross_origin, CORS
 from scrapy import signals
 from scrapy.crawler import CrawlerRunner
+
+from Crawler.db.databasemodels import ArchiveSearch
+from Crawler.db.dbutils import session_scope
 from Crawler.spiders.BNASpider import GeneralBNASpider, BNACountSpider, BNASpiderWithLogin
 from Crawler.utils.search_terms import SearchTerms, AdvancedSearchTerms
 from Crawler.settings import settings
 from scrapy.settings import Settings
 from scrapy.signalmanager import dispatcher
+
+from sqlalchemy import func
 
 crawl_runner = CrawlerRunner(Settings(settings))
 scrape_in_progress = False
@@ -29,8 +34,6 @@ count_activity_info = {
 }
 
 login_details = {
-    "username": 'nick.vivyan@durham.ac.uk',
-    "password": 'EV19@Nick',
     "remember_me": 'false',
     "next_page": '',
 
@@ -157,6 +160,7 @@ def _item_scraped(item, response, spider):
     current_activity_info["downloaded_articles"][-1] += 1
 
 
+# ---------------------- COUNT ----------------------#
 @bp.route('/search/count', methods=("GET", "POST"))
 def start_count():
     global count_in_progress
@@ -202,3 +206,42 @@ def _item_counted(item, response, spider):
     global count_activity_info
     if item["search_index"] >= len(count_activity_info["total_articles"]):
         count_activity_info["total_articles"].append(item["search_count"])
+
+
+# ------------------------- SEARCH RESULTS ----------------------- #
+@bp.route('/search/results')
+def get_searches():
+    print(request.args)
+    limit = int(request.args.get("limit")) if request.args.get("limit") is not None else 10
+    page = int(request.args.get("page")) - 1 if request.args.get("page") is not None else 0
+    sortBy = request.args.get("sortby")  # posible values: id, from date, to date, keyword, time
+    sortDesc = int(request.args.get("desc")) if request.args.get("desc") is not None else 0  # 1 or 0
+    with session_scope() as session:
+        results = session.query(ArchiveSearch)
+        if sortBy is not None and sortBy in ["id", "start_date", "end_date", "keyword", "time"]:
+            if sortBy == "id":
+                results = results.order_by(ArchiveSearch.id.desc()) if sortDesc else results.order_by(ArchiveSearch.id)
+            elif sortBy == "start_date":
+                results = results.order_by(ArchiveSearch.archive_date_start.desc()) if sortDesc \
+                    else results.order_by(ArchiveSearch.archive_date_start)
+            elif sortBy == "end_date":
+                results = results.order_by(ArchiveSearch.archive_date_end.desc()) if sortDesc \
+                    else results.order_by(ArchiveSearch.archive_date_end)
+            elif sortBy == "keyword":
+                print("In keyword. Desc: ", sortDesc, sortDesc if sortDesc else None)
+                results = results.order_by(ArchiveSearch.search_text.desc()) if sortDesc \
+                    else results.order_by(ArchiveSearch.search_text)
+            else:
+                results = results.order_by(ArchiveSearch.timestamp.desc()) if sortDesc \
+                    else results.order_by(ArchiveSearch.timestamp)
+        else:
+            results = results.order_by(ArchiveSearch.id.desc())
+        results = results.limit(limit).offset(limit * page)
+    results = [r.to_dict() for r in results.all()]
+    return jsonify({"results": results, "total": get_count_searches()})
+
+
+def get_count_searches():
+    with session_scope() as session:
+        results = session.query(func.count(ArchiveSearch.id))
+    return results.first()[0]

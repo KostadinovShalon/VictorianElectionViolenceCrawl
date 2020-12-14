@@ -2,6 +2,13 @@ from sqlalchemy import Column, Integer, String, DateTime, Date, ForeignKey, Bool
 from db_session import Base
 
 
+def dump_datetime(value):
+    """Deserialize datetime object into string form for JSON processing."""
+    if value is None:
+        return None
+    return value.strftime("%Y-%m-%d %H:%M:%S")
+
+
 class ArchiveSearch(Base):
     __tablename__ = 'portal_archivesearch'
     id = Column(Integer, primary_key=True)
@@ -27,6 +34,29 @@ class ArchiveSearch(Base):
     def __repr__(self):
         return "<Search (search text = '%s', start = '%s', end = '%s')>" % (
             self.search_text, self.archive_date_start, self.archive_date_end)
+
+    def to_dict(self):
+        """Return object data in easily serializable format"""
+        return {
+            'id': self.id,
+            'keyword': self.search_text,
+            'start_date': self.archive_date_start,
+            'end_date': self.archive_date_end,
+            'archive': self.search_batch_id,
+            'added_date_end': self.added_date_end,
+            'added_date_start': self.added_date_start,
+            'article_type': self.article_type,
+            'exact_phrase': self.exact_phrase,
+            'exact_search': self.exact_search,
+            'exclude_words': self.exclude_words,
+            'front_page': self.front_page,
+            'newspaper_title': self.newspaper_title,
+            'publication_place': self.publication_place,
+            'search_all_words': self.search_all_words,
+            'sort_by': self.sort_by,
+            'tags': self.tags,
+            'timestamp': dump_datetime(self.timestamp),
+        }
 
 
 class ArchiveSearchCount(Base):
