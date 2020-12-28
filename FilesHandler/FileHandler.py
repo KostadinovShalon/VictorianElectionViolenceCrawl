@@ -1,12 +1,13 @@
 import paramiko
 from paramiko import Transport, SFTPClient
-from Crawler.utils import server_variables as server
+import configuration
 
 
 def upload_file(document_id, file_to_upload, filename):
     # noinspection PyTypeChecker
-    transport = Transport((server.host, 22))
-    transport.connect(username=server.ftp_user, password=server.ftp_password)
+    server = configuration.server_variables()
+    transport = Transport((server["host"], 22))
+    transport.connect(username=server["user"], password=server["password"])
     sftp = SFTPClient.from_transport(transport)
     paramiko.util.log_to_file("filename.log")
     try:

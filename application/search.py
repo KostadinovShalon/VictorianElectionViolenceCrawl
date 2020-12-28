@@ -1,19 +1,17 @@
 import crochet
-import flask_cors
-from flask import Blueprint, request, render_template, url_for, redirect, jsonify, Response
-from flask_cors import cross_origin, CORS
+from flask import Blueprint, request, jsonify
+from flask_cors import CORS
 from scrapy import signals
 from scrapy.crawler import CrawlerRunner
-
-from Crawler.db.databasemodels import ArchiveSearch
-from Crawler.db.dbutils import session_scope
-from Crawler.spiders.BNASpider import GeneralBNASpider, BNACountSpider, BNASpiderWithLogin
-from Crawler.utils.search_terms import SearchTerms, AdvancedSearchTerms
-from Crawler.settings import settings
 from scrapy.settings import Settings
 from scrapy.signalmanager import dispatcher
-
 from sqlalchemy import func
+
+from db.databasemodels import ArchiveSearch
+from db.db_session import session_scope
+from Crawler.settings import settings
+from Crawler.spiders.BNASpider import GeneralBNASpider, BNACountSpider, BNASpiderWithLogin
+from Crawler.utils.search_terms import SearchTerms, AdvancedSearchTerms
 
 crawl_runner = CrawlerRunner(Settings(settings))
 scrape_in_progress = False
@@ -32,28 +30,6 @@ count_activity_info = {
     "total_articles": [],  # Increasing list of total articles for each search_term
     "counting": False
 }
-
-login_details = {
-    "remember_me": 'false',
-    "next_page": '',
-
-    "login_url": "https://www.britishnewspaperarchive.co.uk/account/login",
-
-    "headers": {
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
-        "Accept-Encoding": "gzip, deflate, br",
-        "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
-        "Cache-Control": "max-age=0",
-        "Connection": "keep-alive",
-        "Host": "www.britishnewspaperarchive.co.uk",
-        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_3) AppleWebKit/537.36 (KHTML, like Gecko) "
-                      "Chrome/64.0.3282.167 Safari/537.36",
-        "Origin": "https://www.britishnewspaperarchive.co.uk",
-        "Link": "<https://www.britishnewspaperarchive.co.uk/account/login>; rel=\"canonical\"",
-        "X-Frame-Options": "SAMEORIGIN",
-    }
-}
-
 
 bp = Blueprint('search', __name__)
 CORS(bp)
@@ -134,7 +110,8 @@ def scrape_with_crochet(advanced, search_terms, ocr):
     current_activity_info["scrapping"] = True
     dispatcher.connect(_item_scraped, signal=signals.item_scraped)
     if ocr:
-        eventual = crawl_runner.crawl(BNASpiderWithLogin, login_details=login_details, advanced=advanced, search_terms=search_terms)
+        eventual = crawl_runner.crawl(BNASpiderWithLogin, advanced=advanced,
+                                      search_terms=search_terms)
     else:
         eventual = crawl_runner.crawl(GeneralBNASpider, advanced=advanced, search_terms=search_terms)
     eventual.addCallback(finished_scrape)

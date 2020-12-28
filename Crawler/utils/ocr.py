@@ -27,5 +27,6 @@ def get_ocr_bna(url, login_details, cookies=None, session=None):
         for j in json_str:
             ocr_text = ocr_text + j['LineText']
         return ocr_text
-    except ValueError:
+    except ValueError as e:
+        print(e)
         return None

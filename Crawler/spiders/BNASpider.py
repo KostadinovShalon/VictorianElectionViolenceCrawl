@@ -10,9 +10,9 @@ from scrapy.spiders import Spider
 from w3lib.html import remove_tags
 
 from Crawler.items import PageItem
-from Crawler.db import dbconn
-from Crawler.db.databasemodels import ArchiveSearch, ArchiveSearchCount
-from Crawler.db.dbutils import session_scope
+from db import dbconn
+from db.databasemodels import ArchiveSearch, ArchiveSearchCount
+from db.db_session import session_scope
 from Crawler.utils import headers
 from Crawler.utils.ocr import get_ocr_bna
 from Crawler.utils.search_terms import RecoveryAdvancedSearchTerms, AdvancedSearchTerms, RecoverySearchTerms
@@ -383,13 +383,10 @@ class GeneralBNASpider(Spider):
 class BNASpiderWithLogin(GeneralBNASpider):
     name = "BNAWithLogin"
 
-    def __init__(self, search_terms, login_details, advanced=False, generate_json=False, split=None, recovery=False,
+    def __init__(self, search_terms, advanced=False, generate_json=False, split=None, recovery=False,
                  *args, **kwargs):
         super().__init__(search_terms, advanced, generate_json, split, recovery, *args, **kwargs)
-        sensible_details = configuration.bna_variables()
-        self.login_details = login_details
-        self.login_details['username'] = sensible_details['user']
-        self.login_details['password'] = sensible_details['password']
+        self.login_details = configuration.get_login_details()
 
     def start_requests(self):
         if not self.recovery:

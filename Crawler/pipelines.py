@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
 import re
 import json
-from Crawler.db.databasemodels import ArchiveSearchResult, CandidateDocument
-from Crawler.db import dbconn
+from db.databasemodels import ArchiveSearchResult, CandidateDocument
+from db import dbconn
 import datetime
 from Crawler.items import ArticleItem
-from Crawler.db.dbutils import session_scope
+from db.db_session import session_scope
 
 
 class NewsPipeline:

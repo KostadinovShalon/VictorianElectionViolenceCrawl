@@ -1,8 +1,5 @@
-import crochet
-from flask import Blueprint, request, render_template, jsonify, redirect, url_for
+from flask import Blueprint, request, jsonify, redirect, url_for
 from scrapy.crawler import CrawlerRunner
-from Crawler.spiders.BNASpider import GeneralBNASpider
-from Crawler.utils.search_terms import SearchTerms
 from Crawler.settings import settings
 from scrapy.settings import Settings
 import configuration

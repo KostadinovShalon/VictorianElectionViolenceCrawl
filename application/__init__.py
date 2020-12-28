@@ -3,7 +3,7 @@ import crochet
 from flask import Flask
 from flask_cors import CORS
 
-import db_session
+from db import db_session
 import logging
 import sys
 import configuration
@@ -37,6 +37,9 @@ def create_app():
 
     from . import setup
     app.register_blueprint(setup.bp)
+
+    from . import candidates
+    app.register_blueprint(candidates.bp)
     CORS(app)
 
     return app

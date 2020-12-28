@@ -1,157 +1,188 @@
+import shutil
 from io import BytesIO
+
+from db.databasemodels import CandidateDocument
 from FilesHandler.FileHandler import upload_file
 import requests
-from PIL import Image
-import PyPDF2
-from Crawler.utils import bna_login_utils as login
+from PIL import Image, ImageEnhance
+from db.db_session import session_scope
 import os
 
 
 class BNAHandler:
-    payload = {
-        'Username': login.username,
-        "Password": login.password,
-        "RememberMe": login.remember_me,
-        "NextPage": login.next_page}
 
-    def __init__(self, item_url, session=None, slow=False):
-        self.slow = slow
+    def __init__(self, candidate_id, login_details):
+        self.login_details = login_details
+        self.candidate_id = str(candidate_id)
+        with session_scope() as session:
+            result = session.query(CandidateDocument) \
+                .filter(CandidateDocument.id == candidate_id).first()
+            self.item_url = result.url  # Per article data URL
+        self.searched_item = None  # Dict containing information about the item. download_full_pages must be called
+        self.downloaded_pages = {}  # PDf temporal file paths of article's pages. download_full_pages must be called
+        self.temp_full_file_pdf_name = None
+        self.temp_cropped_file_pdf_name = None
+
+    def download_full_pages(self, session=None):
+        payload = {
+            'Username': self.login_details["username"],
+            "Password": self.login_details["password"],
+            "RememberMe": self.login_details["remember_me"],
+            "NextPage": self.login_details["next_page"]
+        }
+        self.downloaded_pages.clear()
+        if not os.path.exists(os.path.join("temp", self.candidate_id)):
+            os.makedirs(os.path.join("temp", self.candidate_id))
         if session is None:
-            self.s = requests.Session()
-            self.s.post(login.login_url, data=self.payload, headers=login.headers)
-        else:
-            self.s = session
-        self.s.get(item_url.replace('items/', ''))
-        resp = self.s.get(item_url)
-        self.j = resp.json()
-        self.searched_item = next((item for item in self.j['Items'] if item['Id'] == '/'
-                                  .join(item_url.split('/')[5:-1]).upper()), None)
-        self.original_pages = []
-        for image in self.searched_item['Images']:
-            url = image['UriPageOriginal']
-            if url not in self.original_pages:
-                self.original_pages.append(url)
-        resp.close()
+            session = requests.Session()
+            session.post(self.login_details["login_url"], data=payload, headers=self.login_details["headers"])  # Login
+        session.get(self.item_url.replace('download/', ''))  # Needed for getting access to the article
+        resp = session.get(self.item_url.replace('download/', 'items/')).json()
+        # This gives a dict with It, Title, Type, PageAreas, Images and PublicTags
+        self.searched_item = next((item for item in resp['Items'] if item['Id'] == resp['CurrentItemId']), None)
+        unique_fn = self.searched_item['Id'].replace('/', '_')
+        temp_name = os.path.join("temp", self.candidate_id, f"unique_fn_full.pdf")
 
-    def get_dim(self):
-        return int(self.searched_item['PageAreas'][0]['Width']), int(self.searched_item['PageAreas'][0]['Height'])
+        if os.path.exists(temp_name):
+            self.temp_full_file_pdf_name = temp_name
+            return
 
-    def download_and_upload_file(self, document_id):
-        # https://www.britishnewspaperarchive.co.uk/viewer/bl/0000289/19000102/021/0002ages'][0]['UriPageOriginal']
-        pdfs = []
-        images = []
-        page_count = 1
-        for page in self.original_pages:
+        # This gives a unique list with article images
+        original_pages = list(dict.fromkeys(image['UriPageOriginal'] for image in self.searched_item['Images']))
+        print(f"Pages: {len(original_pages)}")
+
+        for page_count, page in enumerate(original_pages):
             print('Downloading page ', page_count, page)
-            f = self.s.get(page, headers={'User-Agent': "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_3) "
-                                                        "AppleWebKit/537.36 (KHTML, like Gecko) "
-                                                        "Chrome/64.0.3282.167 Safari/537.36"})
+            f = session.get(page, headers={'User-Agent': self.login_details['headers']["User-Agent"]})
             print('Page ', page_count, ' downloaded')
             tmp = BytesIO(f.content)
             tmp.seek(0)
-            im = Image.open(tmp)
-            images.append({'identifier': page, 'image': im})
-            im.save("./temp" + str(page_count) + ".pdf", 'PDF', resolution=100.0)
-            print('Page ', page_count, ' temporally saved')
-            pdfs.append("temp" + str(page_count) + ".pdf")
-            page_count = page_count + 1
+            with Image.open(tmp) as im:
+                temp_fn = os.path.join("temp", self.candidate_id, f"{unique_fn}_{page_count + 1}.png")
+                im.save(temp_fn, 'PNG', resolution=100.0)
+                self.downloaded_pages[page] = temp_fn
+                print('Page ', page_count, ' temporally saved')
             tmp.close()
             f.close()
-        page_pdf = self.join_pdfs(pdfs, 'temp2upload.pdf')
+        join_pages(self.downloaded_pages.values(), temp_name)
+        self.temp_full_file_pdf_name = temp_name
 
+    def flush(self):
+        folder = os.path.join("temp", self.candidate_id)
+        if os.path.exists(folder):
+            for filename in os.listdir(folder):
+                file_path = os.path.join(folder, filename)
+                try:
+                    if os.path.isfile(file_path) or os.path.islink(file_path):
+                        os.unlink(file_path)
+                    elif os.path.isdir(file_path):
+                        shutil.rmtree(file_path)
+                except Exception as e:
+                    print('Failed to delete %s. Reason: %s' % (file_path, e))
+        # for dp in self.downloaded_pages.values():
+        #     os.remove(dp)
+        # if self.temp_full_file_pdf_name is not None:
+        #     os.remove(self.temp_full_file_pdf_name)
+        # if self.temp_cropped_file_pdf_name is not None:
+        #     os.remove(self.temp_cropped_file_pdf_name)
+
+    def upload_full_pages(self, document_id):
+        if self.temp_full_file_pdf_name is None:
+            raise Exception
         print('Uploading page pdf')
-        upload_file(document_id, page_pdf, "page.pdf")
-        os.remove('temp2upload.pdf')
-        for page in pdfs:
-            os.remove(page)
-        if not (self.searched_item['PageAreas'][0]['Width'].isdigit()
-                and self.searched_item['PageAreas'][0]['Height'].isdigit()):
-            return False
-        self.crop_images(images, document_id)
-        return True
+        upload_file(document_id, self.temp_full_file_pdf_name, "page.pdf")
 
-    def crop_images(self, article_files, document_id):
-        count = 0
-
+    def create_cropped_image(self):
         page_images = []
-        page_pdfs = []
-        for art in article_files:
-            page_images.append((art['identifier'], [], []))
+        for (art_id, art_path) in self.downloaded_pages.items():
+            page_images.append(
+                {
+                    "uri_id": art_id,
+                    "filepath": art_path,
+                    "cropped_filenames": [],
+                    "coordinates": []
+                })
+        cropped_images = []
+        cropped_pdfs = []
+        unique_fn = self.searched_item['Id'].replace('/', '_')
+        temp_name = os.path.join("temp", self.candidate_id, f"{unique_fn}_cropped.pdf")
 
-        # cropped = Image.new('RGB', self.get_dim())
-        for page_area in self.searched_item['PageAreas']:
+        if os.path.exists(temp_name):
+            self.temp_cropped_file_pdf_name = temp_name
+            return
+
+        for count, page_area in enumerate(self.searched_item['PageAreas']):
             page_id = page_area['PageId']
-            article_file = next((af for af in article_files if page_id in af['identifier']), None)
+            article_file = next((af for af in page_images if page_id in af['uri_id']), None)  #
             if article_file is not None:
+                im = Image.open(article_file["filepath"])
                 print(f"Cropping #{count + 1}")
-                xb = int(page_area['XBottomLeft']) * article_file['image'].size[0] / self.get_dim()[0]
-                yb = int(page_area['YBottomLeft']) * article_file['image'].size[1] / self.get_dim()[1]
-                xt = int(page_area['XTopRight']) * article_file['image'].size[0] / self.get_dim()[0]
-                yt = int(page_area['YTopRight']) * article_file['image'].size[1] / self.get_dim()[1]
+                xb = int(page_area['XBottomLeft']) * im.size[0] / int(page_area['Width'])
+                yb = int(page_area['YBottomLeft']) * im.size[1] / int(page_area['Height'])
+                xt = int(page_area['XTopRight']) * im.size[0] / int(page_area['Width'])
+                yt = int(page_area['YTopRight']) * im.size[1] / int(page_area['Height'])
 
-                for page_image in page_images:
-                    if page_image[0] is article_file['identifier']:
-                        if self.slow:
-                            article_file['image'].crop((xb, yb, xt, yt)).save("cropped" + str(count) + ".png", 'PNG',
-                                                                              resolution=100.0)
-                            page_image[1].append("cropped" + str(count) + ".png")
-                        else:
-                            im = article_file['image'].crop((xb, yb, xt, yt))
-                            page_image[1].append(im)
-                        page_image[2].append((xb, yb, xt, yt))
-                        break
-                count = count + 1
+                base_fp = article_file["filepath"].rsplit('.', 1)[0]
+                cropped_filepath = f"{base_fp}_cropped_{count}.png"
+                im.crop((xb, yb, xt, yt)).save(cropped_filepath, 'PNG', resolution=100.0)
+                article_file["cropped_filenames"].append(cropped_filepath)
+                cropped_images.append(cropped_filepath)
+                article_file["coordinates"].append((xb, yb, xt, yt))
 
-        page_item_count = 1
-        for page_image in page_images:
-            min_x = 0
-            min_y = 0
-            max_x = 0
-            max_y = 0
-            for coordinates in page_image[2]:
-                if min_x == 0 or coordinates[0] < min_x:
-                    min_x = coordinates[0]
-                if min_y == 0 or coordinates[1] < min_y:
-                    min_y = coordinates[1]
-                if coordinates[2] > max_x:
-                    max_x = coordinates[2]
-                if coordinates[3] > max_y:
-                    max_y = coordinates[3]
-            tmp = self.paste_images(page_image[1], page_image[2], (min_x, min_y, max_x, max_y), page_item_count)
-            page_item_count = page_item_count + 1
-            page_pdfs.append(tmp)
-        pdf = self.join_pdfs(page_pdfs, 'temp2upload.pdf')
-        upload_file(document_id, pdf, "art.pdf")
-        os.remove('temp2upload.pdf')
-        for page in page_pdfs:
+        for page_count, page_image in enumerate(page_images):
+            tmp = paste_images(page_image["filepath"],
+                               page_image["cropped_filenames"],
+                               page_image["coordinates"],
+                               page_count)
+            cropped_pdfs.append(tmp)
+        join_pages(cropped_pdfs, temp_name)
+        for page in cropped_pdfs:
             os.remove(page)
-        if self.slow:
-            for page_image in page_images:
-                for page in page_image[1]:
-                    os.remove(page)
-        print("Cropped and saved")
+        for page in cropped_images:
+            os.remove(page)
+        self.temp_cropped_file_pdf_name = temp_name
 
-    @staticmethod
-    def join_pdfs(pages, name):
-        merger = PyPDF2.PdfFileMerger()
-        for page in pages:
-            merger.append(page)
-        with open(name, 'wb') as temp2upload:
-            merger.write(temp2upload)
-        merger.close()
-        return name
+    def upload_cropped_pages(self, document_id):
+        if self.temp_cropped_file_pdf_name is None:
+            raise Exception
+        print('Uploading cropped pdf')
+        upload_file(document_id, self.temp_cropped_file_pdf_name, "art.pdf")
+        print("Cropped file uploaded")
 
-    def paste_images(self, images, coordinates, limits, count):
-        w = limits[2] - limits[0]
-        h = limits[3] - limits[1]
-        cropped = Image.new('RGB', (w, h))
-        for i in range(len(images)):
-            x = coordinates[i][0] - limits[0]
-            y = coordinates[i][1] - limits[1]
-            if self.slow:
-                cropped.paste(Image.open(images[i]), (x, y))
-            else:
-                cropped.paste(images[i], (x, y))
-        cropped.save("temp" + str(count) + ".pdf", 'PDF', resolution=100.0)
-        cropped.close()
-        return "temp" + str(count) + ".pdf"
+
+def paste_images(base_page_filepath, images, coordinates, count):
+    base_fp = base_page_filepath.rsplit('.', 1)[0]
+    cropped = Image.open(base_page_filepath)
+    enhancer = ImageEnhance.Brightness(cropped)
+    cropped = enhancer.enhance(0.5)
+
+    for i in range(len(images)):
+        x = int(coordinates[i][0])
+        y = int(coordinates[i][1])
+        cropped.paste(Image.open(images[i]), (x, y))
+    cropped_name = f"{base_fp}_temp_page_{count + 1}.png"
+    cropped.save(cropped_name, 'png', resolution=100.0)
+    cropped.close()
+    return cropped_name
+
+
+def join_pages(items, name):
+    images = list(map(Image.open, items))
+    if len(images) == 1:
+        images[0].save(name, 'PDF', resolution=100.0)
+    else:
+        images[0].save(name, 'PDF', resolution=100.0, save_all=True, append_images=images[1:])
+    for im in images:
+        im.close()
+
+
+if __name__ == '__main__':
+    u = "https://www.britishnewspaperarchive.co.uk/viewer/items/bl/0000052/18000626/018/0003"
+    import configuration
+
+    handler = BNAHandler(1, configuration.get_login_details(prepend='../'))
+    handler.download_full_pages()
+    handler.create_cropped_image()
+    handler.upload_full_pages(1)
+    handler.upload_cropped_pages(1)
+    handler.flush()

@@ -1,5 +1,5 @@
 from sqlalchemy import Column, Integer, String, DateTime, Date, ForeignKey, Boolean
-from db_session import Base
+from db.db_session import Base
 
 
 def dump_datetime(value):
@@ -7,6 +7,13 @@ def dump_datetime(value):
     if value is None:
         return None
     return value.strftime("%Y-%m-%d %H:%M:%S")
+
+
+def dump_date(value):
+    """Deserialize datetime object into string form for JSON processing."""
+    if value is None:
+        return None
+    return value.strftime("%Y-%m-%d")
 
 
 class ArchiveSearch(Base):
@@ -121,6 +128,25 @@ class CandidateDocument(Base):
     ocr = Column(String(100000))
     g_status = Column(String(30))
     status_writer = Column(String(30))
+
+    def to_dict(self):
+        """Return object data in easily serializable format"""
+        return {
+            'id': self.id,
+            'title': self.title,
+            'url': self.url,
+            'description': self.description,
+            'publication_title': self.publication_title,
+            'publication_location': self.publication_location,
+            'type': self.type,
+            'status': self.status,
+            'page': self.page,
+            'publication_date': dump_date(self.publication_date),
+            'word_count': self.word_count,
+            'ocr': self.ocr,
+            'g_status': self.g_status,
+            'status_writer': self.status_writer
+        }
 
 
 class PortalDocument(Base):

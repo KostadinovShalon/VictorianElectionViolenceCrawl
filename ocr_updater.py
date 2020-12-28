@@ -1,10 +1,10 @@
 from bs4 import BeautifulSoup
-from Crawler.db.databasemodels import CandidateDocument
+from db import CandidateDocument
 from Crawler.utils import bna_login_utils as login
-from Crawler.utils.ocr import get_ocr_bna
+from Crawler.utils import get_ocr_bna
 import requests
 from sqlalchemy import or_
-from Crawler.db.dbutils import session_scope
+from db import session_scope
 import csv
 
 payload = {
