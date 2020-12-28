@@ -7,7 +7,7 @@ from scrapy.settings import Settings
 from scrapy.signalmanager import dispatcher
 from sqlalchemy import func
 
-from db.databasemodels import ArchiveSearch
+from db.databasemodels import ArchiveSearch, ArchiveSearchCount
 from db.db_session import session_scope
 from Crawler.settings import settings
 from Crawler.spiders.BNASpider import GeneralBNASpider, BNACountSpider, BNASpiderWithLogin
@@ -214,11 +214,43 @@ def get_searches():
         else:
             results = results.order_by(ArchiveSearch.id.desc())
         results = results.limit(limit).offset(limit * page)
+        total = session.query(func.count(ArchiveSearch.id)).first()[0]
     results = [r.to_dict() for r in results.all()]
-    return jsonify({"results": results, "total": get_count_searches()})
+    return jsonify({"results": results, "total": total})
 
 
-def get_count_searches():
+@bp.route('/search/count/results')
+def get_searches_count():
+    print(request.args)
+    limit = int(request.args.get("limit")) if request.args.get("limit") is not None else 10
+    page = int(request.args.get("page")) - 1 if request.args.get("page") is not None else 0
+    sortBy = request.args.get("sortby")  # posible values: id, from date, to date, keyword, time
+    sortDesc = int(request.args.get("desc")) if request.args.get("desc") is not None else 0  # 1 or 0
     with session_scope() as session:
-        results = session.query(func.count(ArchiveSearch.id))
-    return results.first()[0]
+        results = session.query(ArchiveSearchCount)
+        if sortBy is not None and sortBy in ["id", "start_date", "end_date", "keyword", "time", "count"]:
+            if sortBy == "id":
+                results = results.order_by(ArchiveSearchCount.id.desc()) if sortDesc \
+                    else results.order_by(ArchiveSearchCount.id)
+            elif sortBy == "start_date":
+                results = results.order_by(ArchiveSearchCount.archive_date_start.desc()) if sortDesc \
+                    else results.order_by(ArchiveSearchCount.archive_date_start)
+            elif sortBy == "end_date":
+                results = results.order_by(ArchiveSearchCount.archive_date_end.desc()) if sortDesc \
+                    else results.order_by(ArchiveSearchCount.archive_date_end)
+            elif sortBy == "keyword":
+                results = results.order_by(ArchiveSearchCount.search_text.desc()) if sortDesc \
+                    else results.order_by(ArchiveSearchCount.search_text)
+            elif sortBy == "count":
+                results = results.order_by(ArchiveSearchCount.results_count.desc()) if sortDesc \
+                    else results.order_by(ArchiveSearchCount.results_count)
+            else:
+                results = results.order_by(ArchiveSearchCount.timestamp.desc()) if sortDesc \
+                    else results.order_by(ArchiveSearchCount.timestamp)
+        else:
+            results = results.order_by(ArchiveSearchCount.id.desc())
+        results = results.limit(limit).offset(limit * page)
+        total = session.query(func.count(ArchiveSearchCount.id)).first()[0]
+    results = [r.to_dict() for r in results.all()]
+    return jsonify({"results": results, "total": total})
+
