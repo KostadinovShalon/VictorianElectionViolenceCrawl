@@ -82,12 +82,13 @@ def start_candidates_processing(articles):
 def get_candidates(ids, limit, page, sort_by, desc):
     cands = []
     with session_scope() as session:
-        results = session.query(ArchiveSearchResult.url) \
-            .filter(ArchiveSearchResult.archive_search_id.in_(ids))
         needing_coding = session.query(CandidateDocument) \
-            .filter(CandidateDocument.url.in_(results)) \
             .filter(CandidateDocument.status != '0') \
             .filter(CandidateDocument.status != "1")
+        if ids is not None:
+            results = session.query(ArchiveSearchResult.url) \
+                .filter(ArchiveSearchResult.archive_search_id.in_(ids))
+            needing_coding = needing_coding.filter(CandidateDocument.url.in_(results))
         # fieldnames = ['id', 'url', 'publication_title', 'description', 'status',
         #               'g_status', 'title', 'status_writer']
         if sort_by is not None and sort_by in ["id", "title", "publication_title", "publication_location", "status",
@@ -122,10 +123,11 @@ def get_candidates(ids, limit, page, sort_by, desc):
 
 def get_count_candidates(ids):
     with session_scope() as session:
-        search_urls = session.query(ArchiveSearchResult.url) \
-            .filter(ArchiveSearchResult.archive_search_id.in_(ids))
         results = session.query(func.count(CandidateDocument.id)) \
-            .filter(CandidateDocument.url.in_(search_urls)) \
             .filter(CandidateDocument.status != '0') \
             .filter(CandidateDocument.status != "1")
+        if ids is not None:
+            search_urls = session.query(ArchiveSearchResult.url) \
+                .filter(ArchiveSearchResult.archive_search_id.in_(ids))
+            results = results.filter(CandidateDocument.url.in_(search_urls))
     return results.first()[0]
