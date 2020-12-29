@@ -1,4 +1,3 @@
-import paramiko
 from paramiko import Transport, SFTPClient
 import configuration
 
@@ -9,7 +8,6 @@ def upload_file(document_id, file_to_upload, filename):
     transport = Transport((server["host"], 22))
     transport.connect(username=server["user"], password=server["password"])
     sftp = SFTPClient.from_transport(transport)
-    paramiko.util.log_to_file("filename.log")
     try:
         sftp.chdir("documents")  # Test if remote_path exists
     except IOError:

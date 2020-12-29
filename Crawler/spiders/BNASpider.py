@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-import csv
 import json
 from datetime import timedelta, datetime
 
@@ -29,7 +28,6 @@ class GeneralBNASpider(Spider):
 
     # todo: ask to user if want to recover fast or slow
     # TODO: change recovery implementation to multi-entries
-    # TODO: CREATE FAST, SLOW, AND COUNT SPIDERS
 
     def __init__(self, search_terms, advanced=False, generate_json=False, split=None, recovery=False,
                  *args, **kwargs):
@@ -203,8 +201,6 @@ class GeneralBNASpider(Spider):
         }, indent=2)
 
     def start_requests(self):
-        if not self.recovery:
-            initialize_search_file()
         yield scrapy.Request(self.searches[0]["url"], meta={"search": self.searches[0]})
 
     def count_articles(self, response):
@@ -389,8 +385,6 @@ class BNASpiderWithLogin(GeneralBNASpider):
         self.login_details = configuration.get_login_details()
 
     def start_requests(self):
-        if not self.recovery:
-            initialize_search_file()
         yield scrapy.FormRequest(url=self.login_details['login_url'],
                                  headers=self.login_details['headers'],
                                  meta={
@@ -494,9 +488,3 @@ class BNACountSpider(GeneralBNASpider):
         resp = self.count_articles(response)
         resp["search_index"] = current_index
         yield resp
-
-
-def initialize_search_file():
-    with open('search_ids.csv', 'w') as search_file:
-        writer = csv.writer(search_file)
-        writer.writerow(['id', 'filename'])
