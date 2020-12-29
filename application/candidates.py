@@ -2,7 +2,8 @@ import crochet
 from flask import Blueprint, request, jsonify, send_file
 from sqlalchemy import func
 
-from application.download_candidates import CandidateDownloader
+from FilesHandler.download_candidates import CandidateDownloader
+from FilesHandler.ocr_updater import update_ocr
 from db.databasemodels import ArchiveSearchResult, CandidateDocument
 from db.db_session import session_scope
 from FilesHandler.BNAHandler import BNAHandler
@@ -65,6 +66,17 @@ def stop_process():
 
         current_activity_info["uploading"] = False
     return jsonify(current_activity_info)
+
+
+@bp.route('/update-ocr', methods=("PUT",))
+def update_candidate_ocr():
+    _id = request.data
+    print(_id)
+    if _id:
+        ocr = update_ocr(int(_id))
+        return ocr if ocr is not None else ("", 404)
+    else:
+        return "", 404
 
 
 @crochet.run_in_reactor

@@ -3,7 +3,7 @@ import json
 from Crawler.utils import headers, bna_login_url
 
 
-def get_ocr_bna(url, login_details, cookies=None, session=None):
+def get_ocr_bna(url, login_details=None, cookies=None, session=None):
     link = url.split('bl')[1]
     ocr_text = ''
     ocr_link = 'https://www.britishnewspaperarchive.co.uk/tags/itemocr/BL/' + link

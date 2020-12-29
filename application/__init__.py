@@ -32,14 +32,12 @@ def create_app():
     except OSError:
         pass
 
-    from . import search
+    from . import search, setup, candidates, portal
     app.register_blueprint(search.bp)
-
-    from . import setup
     app.register_blueprint(setup.bp)
-
-    from . import candidates
     app.register_blueprint(candidates.bp)
+    app.register_blueprint(portal.bp)
+
     CORS(app)
 
     return app

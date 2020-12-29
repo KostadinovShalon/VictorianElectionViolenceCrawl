@@ -191,3 +191,20 @@ class PortalDocument(Base):
     url = Column(String(1000))
     word_count = Column(Integer)
     page = 0
+
+    def to_dict(self):
+        """Return object data in easily serializable format"""
+        return {
+            'id': self.id,
+            'title': self.doc_title,
+            'pdf_uri': self.pdf_location,
+            'cropped_pdf_uri': self.pdf_page_location,
+            'url': self.url,
+            'description': self.description,
+            'publication_title': self.publication_title,
+            'publication_location': self.publication_location,
+            'type': self.type,
+            'publication_date': dump_date(self.publication_date),
+            'word_count': self.word_count,
+            'ocr': self.ocr,
+        }
