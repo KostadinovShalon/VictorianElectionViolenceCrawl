@@ -1,10 +1,18 @@
+import crochet
 from flask import Blueprint, request, jsonify
 from sqlalchemy import func
 
+from FilesHandler.portal_document_updater import PortalDocumentsUpdater
 from db.databasemodels import PortalDocument
 from db.db_session import session_scope
 
 bp = Blueprint('portal', __name__, url_prefix='/portal')
+
+document_uploader = None
+current_activity_info = {
+    "status": None,
+    "updating": False
+}
 
 
 @bp.route('')
@@ -14,6 +22,47 @@ def candidates():
     sortBy = request.args.get("sortby")
     sortDesc = int(request.args.get("desc")) if request.args.get("desc") is not None else 0
     return jsonify(get_portal_documents(limit, page, sortBy, sortDesc))
+
+
+@bp.route('update', methods=('GET', 'PUT',))
+def update_files():
+    global current_activity_info
+    global document_uploader
+
+    if current_activity_info["updating"]:
+        current_activity_info["status"] = document_uploader.status[1]
+    elif request.method == 'PUT':
+        _id = request.data
+        if _id:
+            start_updating(int(_id))
+            current_activity_info["updating"] = True
+        else:
+            return "", 404
+    return jsonify(current_activity_info)
+
+
+@bp.route('/update/stop', methods=("DELETE",))
+def stop_process():
+    global document_uploader
+    global current_activity_info
+
+    if document_uploader is not None:
+        document_uploader.cancel()
+
+        current_activity_info["updating"] = False
+    return jsonify(current_activity_info)
+
+
+@crochet.run_in_reactor
+def start_updating(document_id):
+    global document_uploader
+    global current_activity_info
+
+    current_activity_info["updating"] = True
+    document_uploader = PortalDocumentsUpdater(document_id)
+    document_uploader.update_documents()
+    document_uploader.flush_files()
+    current_activity_info["updating"] = False
 
 
 def get_portal_documents(limit, page, sort_by, desc):

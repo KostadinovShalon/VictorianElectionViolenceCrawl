@@ -197,8 +197,8 @@ class PortalDocument(Base):
         return {
             'id': self.id,
             'title': self.doc_title,
-            'pdf_uri': self.pdf_location,
-            'cropped_pdf_uri': self.pdf_page_location,
+            'pdf_uri': self.pdf_page_location,
+            'cropped_pdf_uri': self.pdf_location,
             'url': self.url,
             'description': self.description,
             'publication_title': self.publication_title,

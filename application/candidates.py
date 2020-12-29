@@ -71,7 +71,6 @@ def stop_process():
 @bp.route('/update-ocr', methods=("PUT",))
 def update_candidate_ocr():
     _id = request.data
-    print(_id)
     if _id:
         ocr = update_ocr(int(_id))
         return ocr if ocr is not None else ("", 404)
