@@ -1,11 +1,10 @@
 # -*- coding: utf-8 -*-
 import re
-import json
 from db.databasemodels import ArchiveSearchResult, CandidateDocument
-from db import dbconn
+from repositories import repo_handler
 import datetime
 from Crawler.items import ArticleItem
-from db.db_session import session_scope
+from repositories.candidates_repo import get_candidate_id_from_url
 
 
 class NewsPipeline:
@@ -18,8 +17,7 @@ class NewsPipeline:
                 c = article_item.results_count
                 print(f'Articles in search "{identifier} [{article_item.archive_date_start} - '
                       f'{article_item.archive_date_end}]": {article_item.results_count}')
-                with session_scope() as session:
-                    dbconn.insert_search(session, article_item)
+                repo_handler.insert_search(article_item)
                 return dict(search_index=item["search_index"], search_count=c)
             else:
                 process_bna_item(item)
@@ -34,7 +32,6 @@ def process_bna_item(page_item):
     keyword = page_item['keyword']
     start_date = page_item['start_date']
     end_date = page_item['end_date']
-    generate_json = page_item['generate_json']
     search_id = page_item['search_id']
     filename = "{}_{}_{}_{}".format(site, keyword, start_date, end_date)
     title = extract_words_from_line_break(page_item['title'])
@@ -57,12 +54,7 @@ def process_bna_item(page_item):
                                download_page=download_page, ocr=ocr, start_date=start_date,
                                end_date=end_date, search_id=search_id)
 
-    if generate_json:
-        print('Writing data into the json file')
-        article_item.write_into_json_file(filename)
-    else:
-        print('Writing data only into database')
-        filename = None
+    print('Writing data into database')
     write_into_database(article_item)
 
 
@@ -97,47 +89,34 @@ def write_into_database(article_item, site='BNA'):
     if site == 'BNA':
         publication_date = datetime.datetime.strptime(article_item["publish"], "%A %d %B %Y")
         publication_date = '{0.year:4d}-{0.month:02d}-{0.day:02d}'.format(publication_date)
-    # elif site == 'WNO':
-    #     publication_date = article_item["publish"][:4].replace('st', '').replace('nd', '').replace('rd', '') \
-    #         .replace('th', '')
-    #     publication_date += article_item["publish"][4:]
-    #     publication_date = datetime.datetime.strptime(publication_date, "%d%B%Y")
-    #     publication_date = '{0.year:4d}-{0.month:02d}-{0.day:02d}'.format(publication_date)
-    #     article_item["county"] = ""
-    search_result = ArchiveSearchResult(title=article_item["title"].encode('latin-1', 'ignore'),
-                                        url=article_item["download_url"].encode('latin-1', 'ignore'),
-                                        description=article_item["description"].encode('latin-1', 'ignore'),
-                                        publication_title=article_item["newspaper"].encode('latin-1', 'ignore'),
-                                        publication_location=article_item["county"].encode('latin-1', 'ignore'),
-                                        type=article_item["type_"].encode('latin-1', 'ignore'),
+    url = article_item["download_url"]
+    search_result = ArchiveSearchResult(title=article_item["title"].encode('utf8', 'replace').decode('cp1252', 'ignore'),
+                                        url=url,
+                                        description=article_item["description"].encode('utf8', 'replace').decode('cp1252', 'ignore'),
+                                        publication_title=article_item["newspaper"],
+                                        publication_location=article_item["county"],
+                                        type=article_item["type_"],
                                         archive_search_id=article_item["search_id"],
                                         publication_date=publication_date,
                                         word_count=article_item["word"])
-    with session_scope() as session:
-        dbconn.insert(session, search_result)
-        unique_result = session.query(CandidateDocument.id) \
-            .filter(CandidateDocument.url == search_result.url).first()
-        if unique_result is None:
-            ocr = ""
-            page = 0
-            if 'britishnewspaper' in search_result.url:
-                page = int(search_result.url.split('/')[-1])
-                ocr = article_item["ocr"]
-            candidate_document = CandidateDocument(title=search_result.title,
-                                                   url=search_result.url,
-                                                   description=search_result.description,
-                                                   publication_title=search_result.publication_title,
-                                                   publication_location=search_result.publication_location,
-                                                   type=search_result.type,
-                                                   publication_date=search_result.publication_date,
-                                                   status="", g_status="", status_writer="gary",
-                                                   word_count=search_result.word_count,
-                                                   page=page,
-                                                   ocr=ocr.encode('latin-1', 'ignore'))
-            dbconn.insert(session, candidate_document)
 
-
-def write_into_json_file(article_item, filename):
-    with open("Crawler/Records/" + filename + ".json", "a") as f:
-        json.dump(article_item.__dict__, f)
-        f.write(',\n')
+    repo_handler.insert(search_result)
+    unique_result = get_candidate_id_from_url(url)
+    if unique_result is None:
+        ocr = ""
+        page = 0
+        if 'britishnewspaper' in url:
+            page = int(url.split('/')[-1])
+            ocr = article_item["ocr"]
+        candidate_document = CandidateDocument(title=article_item["title"].encode('utf8', 'replace').decode('cp1252', 'ignore'),
+                                               url=url,
+                                               description=article_item["description"].encode('utf8', 'replace').decode('cp1252', 'ignore'),
+                                               publication_title=article_item["newspaper"],
+                                               publication_location=article_item["county"],
+                                               type=article_item["type_"],
+                                               publication_date=publication_date,
+                                               status="", g_status="", status_writer="gary",
+                                               word_count=article_item["word"],
+                                               page=page,
+                                               ocr=ocr.encode('utf8', 'replace').decode('cp1252', 'ignore'))
+        repo_handler.insert(candidate_document)

@@ -34,3 +34,9 @@ def server_details():
         configuration.set_server_variables(**request.json)
         return redirect(url_for("setup.server_details"))
     return jsonify(configuration.server_variables())
+
+
+@bp.route('/local', methods=("POST",))
+def local_details():
+    configuration.set_local(**request.json)
+    return "Ok"

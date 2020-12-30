@@ -1,12 +1,13 @@
+import os
 import shutil
 from io import BytesIO
+import configuration
 
-from db.databasemodels import CandidateDocument
-from FilesHandler.FileHandler import upload_file
 import requests
 from PIL import Image, ImageEnhance
-from db.db_session import session_scope
-import os
+
+from FilesHandler.FileHandler import upload_file
+from repositories.candidates_repo import get_candidate_url_from_id
 
 
 class BNAHandler:
@@ -14,14 +15,17 @@ class BNAHandler:
     def __init__(self, candidate_id, login_details):
         self.login_details = login_details
         self.candidate_id = str(candidate_id)
-        with session_scope() as session:
-            result = session.query(CandidateDocument) \
-                .filter(CandidateDocument.id == candidate_id).first()
-            self.item_url = result.url  # Per article data URL
+        self.item_url = get_candidate_url_from_id(int(candidate_id))  # Per article data URL
         self.searched_item = None  # Dict containing information about the item. download_full_pages must be called
         self.downloaded_pages = {}  # PDf temporal file paths of article's pages. download_full_pages must be called
         self.temp_full_file_pdf_name = None
         self.temp_cropped_file_pdf_name = None
+        self.local = configuration.server_variables()["local"]
+        self.files_dir = configuration.server_variables()["files_dir"]
+        if self.local:
+            self.root_files_dir = os.path.join(self.files_dir, self.candidate_id)
+        else:
+            self.root_files_dir = os.path.join("temp", self.candidate_id)
 
     def download_full_pages(self, session=None):
         payload = {
@@ -31,8 +35,9 @@ class BNAHandler:
             "NextPage": self.login_details["next_page"]
         }
         self.downloaded_pages.clear()
-        if not os.path.exists(os.path.join("temp", self.candidate_id)):
-            os.makedirs(os.path.join("temp", self.candidate_id))
+        if not os.path.exists(self.root_files_dir):
+            os.makedirs(self.root_files_dir)
+
         if session is None:
             session = requests.Session()
             session.post(self.login_details["login_url"], data=payload, headers=self.login_details["headers"])  # Login
@@ -41,10 +46,9 @@ class BNAHandler:
         # This gives a dict with It, Title, Type, PageAreas, Images and PublicTags
         self.searched_item = next((item for item in resp['Items'] if item['Id'] == resp['CurrentItemId']), None)
         unique_fn = self.searched_item['Id'].replace('/', '_')
-        temp_name = os.path.join("temp", self.candidate_id, f"unique_fn_full.pdf")
+        self.temp_full_file_pdf_name = os.path.join(self.root_files_dir, f"page.pdf")
 
-        if os.path.exists(temp_name):
-            self.temp_full_file_pdf_name = temp_name
+        if os.path.exists(self.temp_full_file_pdf_name):
             return
 
         # This gives a unique list with article images
@@ -58,20 +62,22 @@ class BNAHandler:
             tmp = BytesIO(f.content)
             tmp.seek(0)
             with Image.open(tmp) as im:
-                temp_fn = os.path.join("temp", self.candidate_id, f"{unique_fn}_{page_count + 1}.png")
+                temp_fn = os.path.join(self.root_files_dir, f"{unique_fn}_{page_count + 1}.png")
                 im.save(temp_fn, 'PNG', resolution=100.0)
                 self.downloaded_pages[page] = temp_fn
                 print('Page ', page_count, ' temporally saved')
             tmp.close()
             f.close()
-        join_pages(self.downloaded_pages.values(), temp_name)
-        self.temp_full_file_pdf_name = temp_name
+        join_pages(self.downloaded_pages.values(), self.temp_full_file_pdf_name)
 
     def flush(self):
-        folder = os.path.join("temp", self.candidate_id)
+        folder = os.path.join(self.root_files_dir)
         if os.path.exists(folder):
             for filename in os.listdir(folder):
                 file_path = os.path.join(folder, filename)
+                if self.local:  # Skipping final files if in local
+                    if file_path in (self.temp_full_file_pdf_name, self.temp_cropped_file_pdf_name):
+                        continue
                 try:
                     if os.path.isfile(file_path) or os.path.islink(file_path):
                         os.unlink(file_path)
@@ -79,18 +85,13 @@ class BNAHandler:
                         shutil.rmtree(file_path)
                 except Exception as e:
                     print('Failed to delete %s. Reason: %s' % (file_path, e))
-        # for dp in self.downloaded_pages.values():
-        #     os.remove(dp)
-        # if self.temp_full_file_pdf_name is not None:
-        #     os.remove(self.temp_full_file_pdf_name)
-        # if self.temp_cropped_file_pdf_name is not None:
-        #     os.remove(self.temp_cropped_file_pdf_name)
 
     def upload_full_pages(self, document_id):
-        if self.temp_full_file_pdf_name is None:
-            raise Exception
-        print('Uploading page pdf')
-        upload_file(document_id, self.temp_full_file_pdf_name, "page.pdf")
+        if not self.local:
+            if self.temp_full_file_pdf_name is None:
+                raise Exception
+            print('Uploading page pdf')
+            upload_file(document_id, self.temp_full_file_pdf_name, "page.pdf")
 
     def create_cropped_image(self):
         page_images = []
@@ -104,11 +105,9 @@ class BNAHandler:
                 })
         cropped_images = []
         cropped_pdfs = []
-        unique_fn = self.searched_item['Id'].replace('/', '_')
-        temp_name = os.path.join("temp", self.candidate_id, f"{unique_fn}_cropped.pdf")
+        self.temp_cropped_file_pdf_name = os.path.join(self.root_files_dir, "art.pdf")
 
-        if os.path.exists(temp_name):
-            self.temp_cropped_file_pdf_name = temp_name
+        if os.path.exists(self.temp_cropped_file_pdf_name):
             return
 
         for count, page_area in enumerate(self.searched_item['PageAreas']):
@@ -135,19 +134,19 @@ class BNAHandler:
                                page_image["coordinates"],
                                page_count)
             cropped_pdfs.append(tmp)
-        join_pages(cropped_pdfs, temp_name)
+        join_pages(cropped_pdfs, self.temp_cropped_file_pdf_name)
         for page in cropped_pdfs:
             os.remove(page)
         for page in cropped_images:
             os.remove(page)
-        self.temp_cropped_file_pdf_name = temp_name
 
     def upload_cropped_pages(self, document_id):
-        if self.temp_cropped_file_pdf_name is None:
-            raise Exception
-        print('Uploading cropped pdf')
-        upload_file(document_id, self.temp_cropped_file_pdf_name, "art.pdf")
-        print("Cropped file uploaded")
+        if not self.local:
+            if self.temp_cropped_file_pdf_name is None:
+                raise Exception
+            print('Uploading cropped pdf')
+            upload_file(document_id, self.temp_cropped_file_pdf_name, "art.pdf")
+            print("Cropped file uploaded")
 
 
 def paste_images(base_page_filepath, images, coordinates, count):
@@ -178,7 +177,6 @@ def join_pages(items, name):
 
 if __name__ == '__main__':
     u = "https://www.britishnewspaperarchive.co.uk/viewer/items/bl/0000052/18000626/018/0003"
-    import configuration
 
     handler = BNAHandler(1, configuration.get_login_details(prepend='../'))
     handler.download_full_pages()

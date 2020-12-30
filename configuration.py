@@ -1,50 +1,64 @@
 import os
+import yaml
 
 from db import db_session
 
 
+basic_config = {
+        "local": {
+            "enabled": False,
+            "data_dir": None,
+            "files_dir": "files",
+        },
+        "bna": {
+            "user": None,
+            "password": None
+        },
+        "db": {
+            "user": None,
+            "password": None,
+            "host": None,
+            "port": 3306
+        },
+        "files": {
+            "user": None,
+            "password": None,
+            "sftp_host": None
+        }
+    }
+
+
+# Getters
 def server_variables(prepend='.'):
-    path = os.path.join(prepend, "application", "configuration", "server_variables.csv")
+    path = os.path.join(prepend, "application", "configuration", "cfg.yaml")
     if not os.path.exists(path):
-        with open(path, "w") as f:
-            f.write("")
-        return None
+        write_config(path, basic_config)
     with open(path, "r") as f:
-        for line in f:
-            variables = line.split(";")
-            if len(variables) < 3:
-                return None
-            result = {
-                "user": variables[0],
-                "password": variables[1],
-                "host": variables[2]
-            }
-            return result
+        cfg = yaml.full_load(f)
+    files_dir = None if cfg["local"]["data_dir"] is None or cfg["local"]["files_dir"] is None else \
+        os.path.join(cfg["local"]["data_dir"], cfg["local"]["files_dir"])
+    return {
+        "local": cfg["local"]["enabled"],
+        "files_dir": files_dir,
+        "user": cfg["files"]["user"],
+        "password": cfg["files"]["password"],
+        "host": cfg["files"]["sftp_host"]
+    }
 
 
-def set_server_variables(user, password, host):
-    path = os.path.join("application", "configuration", "server_variables.csv")
-    with open(path, "w") as f:
-        f.write(f"{user};{password};{host}")
-
-
-def bna_variables(prepend="./"):
-    path = os.path.join(prepend, "application", "configuration", "bna_user.csv")
+def bna_variables(prepend="."):
+    path = os.path.join(prepend, "application", "configuration", "cfg.yaml")
     if not os.path.exists(path):
-        with open(path, "w") as f:
-            f.write("")
-        return None
+        write_config(path, basic_config)
     with open(path, "r") as f:
-        for line in f:
-            variables = line.split(";")
-            if len(variables) < 2:
-                return None
-            user = variables[0]
-            password = variables[1]
-            return dict(username=user, password=password)
+        cfg = yaml.full_load(f)
+    return {
+        "username": cfg["bna"]["user"],
+        "password": cfg["bna"]["password"]
+    }
 
 
-def get_login_details(prepend="./"):
+def get_login_details(prepend="."):
     user_details = bna_variables(prepend)
     return {
         "username": user_details["username"],
@@ -70,32 +84,68 @@ def get_login_details(prepend="./"):
     }
 
 
-def set_bna_variables(user, password):
-    path = os.path.join("application", "configuration", "bna_user.csv")
-    with open(path, "w") as f:
-        f.write(f"{user};{password}")
-
-
-def db_variables(prepend='./'):
-    path = os.path.join(prepend, "application", "configuration", "db_connection_details.csv")
+def db_variables(prepend='.'):
+    path = os.path.join(prepend, "application", "configuration", "cfg.yaml")
     if not os.path.exists(path):
-        with open(path, "w") as f:
-            f.write("")
-        return None
+        write_config(path, basic_config)
     with open(path, "r") as f:
-        for line in f:
-            variables = line.split(";")
-            if len(variables) < 4:
-                return None
-            user = variables[0]
-            password = variables[1]
-            host = variables[2]
-            port = variables[3]
-            return dict(user=user, password=password, host=host)
+        cfg = yaml.full_load(f)
+    return {
+        "user": cfg["db"]["user"],
+        "password": cfg["db"]["password"],
+        "host": cfg["db"]["host"],
+        "port": cfg["db"]["port"],
+        "local": cfg["local"]["enabled"],
+        "data_dir": cfg["local"]["data_dir"],
+    }
 
 
-def set_db_variables(user, password, host, port=3600):
-    path = os.path.join("application", "configuration", "db_connection_details.csv")
-    with open(path, "w") as f:
-        f.write(f"{user};{password};{host};{port}")
-        db_session.change_session_data(user, password, host)
+# Setters
+def _get_cfg(path):
+    if not os.path.exists(path):
+        return dict(basic_config)
+    else:
+        return yaml.full_load(open(path, "r"))
+
+
+def set_server_variables(user, password, host, prepend='.'):
+    path = os.path.join(prepend, "application", "configuration", "cfg.yaml")
+    cfg = _get_cfg(path)
+    cfg["files"]["user"] = user
+    cfg["files"]["password"] = password
+    cfg["files"]["sftp_host"] = host
+    write_config(path, cfg)
+
+
+def set_bna_variables(user, password, prepend='.'):
+    path = os.path.join(prepend, "application", "configuration", "cfg.yaml")
+    cfg = _get_cfg(path)
+    cfg["bna"]["user"] = user
+    cfg["bna"]["password"] = password
+    write_config(path, cfg)
+
+
+def set_db_variables(user, password, host, port=3306, prepend='.'):
+    path = os.path.join(prepend, "application", "configuration", "cfg.yaml")
+    cfg = _get_cfg(path)
+    cfg["db"]["user"] = user
+    cfg["db"]["password"] = password
+    cfg["db"]["host"] = host
+    cfg["db"]["port"] = port
+    write_config(path, cfg)
+    db_session.change_session_data(user, password, host)
+
+
+def set_local(local, data_dir=None, files_dir="files", prepend='.'):
+    path = os.path.join(prepend, "application", "configuration", "cfg.yaml")
+    cfg = _get_cfg(path)
+    cfg["local"]["enabled"] = local
+    if local:
+        cfg["local"]["data_dir"] = data_dir
+        cfg["local"]["files_dir"] = files_dir
+    write_config(path, cfg)
+
+
+def write_config(path, cfg):
+    with open(path, 'w') as file:
+        yaml.dump(cfg, file)

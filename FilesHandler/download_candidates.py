@@ -1,12 +1,13 @@
 import requests
 
 from Crawler.utils import bna_login_url, headers
-from db.dbconn import update_candidate, insert, update_art_url, update_page_url
-from db.db_session import session_scope
 from FilesHandler.BNAHandler import BNAHandler
-from db.databasemodels import PortalDocument, CandidateDocument
+from db.databasemodels import PortalDocument
 from Crawler.utils.ocr import get_ocr_bna
 import configuration
+from repositories.candidates_repo import update_candidate_status, get_candidate
+from repositories.portal_documents_repo import check_if_portal_exists, update_portal_page_url, update_portal_cropped_url
+from repositories.repo_handler import insert
 
 
 class CandidateDownloader:
@@ -38,10 +39,9 @@ class CandidateDownloader:
         if self._cancel:
             return
         self.status = 1, "Updating article status different than 1"
-        with session_scope() as session:
-            for article in self.other_articles:
-                update_candidate(session, article["id"], str(article["status"]),
-                                 article["g_status"], article["status_writer"])
+        for article in self.other_articles:
+            update_candidate_status(article["id"], str(article["status"]),
+                                    article["g_status"], article["status_writer"])
         login_details = configuration.get_login_details()
         s = requests.Session()
         payload = {
@@ -62,17 +62,16 @@ class CandidateDownloader:
             g_status = article["g_status"]
             status_writer = article["status_writer"]
 
-            with session_scope() as session:
-                candidate_document = session.query(CandidateDocument) \
-                    .filter(CandidateDocument.id == candidate_id).first()
-                publication_date = candidate_document.publication_date
-                title = candidate_document.title
-                county = candidate_document.publication_location
-                description_article = candidate_document.description
-                download_page = candidate_document.url
-                newspaper = candidate_document.publication_title
-                type_ = candidate_document.type
-                words = candidate_document.word_count
+            candidate_document = get_candidate(candidate_id)
+            publication_date = candidate_document.publication_date
+            title = candidate_document.title
+            county = candidate_document.publication_location
+            description_article = candidate_document.description
+            download_page = candidate_document.url
+            newspaper = candidate_document.publication_title
+            type_ = candidate_document.type
+            words = candidate_document.word_count
+
             self.status = 2, f"Processing Article {candidate_id}: {title}"
 
             file_processed = False
@@ -84,12 +83,10 @@ class CandidateDownloader:
             doc_title = title
             des = description_article
 
-            check_if_exists = session.query(PortalDocument.id) \
-                .filter(PortalDocument.ocr == ocr) \
-                .filter(PortalDocument.url == download_page).all()
+            check_if_exists, existing_id = check_if_portal_exists(ocr, download_page)
 
             publication_date = '{0.year:4d}-{0.month:02d}-{0.day:02d}'.format(publication_date)
-            if len(check_if_exists) == 0:
+            if not check_if_exists:
                 document = PortalDocument(source_id="2", doc_title=doc_title,
                                           pdf_location="", pdf_page_location="",
                                           ocr=ocr,
@@ -101,54 +98,53 @@ class CandidateDownloader:
                                           type=type_,
                                           url=download_page, word_count=words)
 
-                with session_scope() as session:
-                    try:
-                        handler = self.bna_handlers[candidate_id]
-                        if document.ocr is None or document.ocr == '':
-                            ocr = get_ocr_bna(download_page, login_details, session=s)
-                            document.ocr = ocr.encode('latin-1', 'ignore')
+                try:
+                    handler = self.bna_handlers[candidate_id]
+                    if document.ocr is None or document.ocr == '':
+                        ocr = get_ocr_bna(download_page, login_details, session=s)
+                        document.ocr = ocr.encode('latin-1', 'ignore')
+                    if self._cancel:
+                        return
+                    document = insert(document)
+                    update_candidate_status(candidate_id, str(article_status), g_status, status_writer)
+                    file_processed = True
+                    self.status = 3, f"Processing Article {candidate_id} (Downloading article): {title}"
+                    handler.download_full_pages(s)
+                    self.status = 4, f"Processing Article {candidate_id} (Uploading full article): {title}"
+                    if self._cancel:
+                        return
+                    handler.upload_full_pages(document.id)
+                    update_portal_page_url(document.id, handler.temp_full_file_pdf_name)
+                    if self._cancel:
+                        return
+                    self.status = 5, f"Processing Article {candidate_id} (Cropping article): {title}"
+                    handler.create_cropped_image()
+                    if self._cancel:
+                        return
+                    self.status = 6, f"Processing Article {candidate_id} (Uploading cropped article): {title}"
+                    if self._cancel:
+                        return
+                    handler.upload_cropped_pages(document.id)
+                    update_portal_cropped_url(document.id, handler.temp_cropped_file_pdf_name)
+                    art_uploaded = True
+                except Exception as e:
+                    print(e)
+                if file_processed:
+                    if art_uploaded:
                         if self._cancel:
                             return
-                        insert(session, document)
-                        update_candidate(session, candidate_id, str(article_status), g_status, status_writer)
-                        file_processed = True
-                        self.status = 3, f"Processing Article {candidate_id} (Downloading article): {title}"
-                        handler.download_full_pages(s)
-                        self.status = 4, f"Processing Article {candidate_id} (Uploading full article): {title}"
-                        if self._cancel:
-                            return
-                        handler.upload_full_pages(document.id)
-                        if self._cancel:
-                            return
-                        self.status = 5, f"Processing Article {candidate_id} (Cropping article): {title}"
-                        handler.create_cropped_image()
-                        if self._cancel:
-                            return
-                        self.status = 6, f"Processing Article {candidate_id} (Uploading cropped article): {title}"
-                        if self._cancel:
-                            return
-                        handler.upload_cropped_pages(document.id)
-                        art_uploaded = True
-                    except Exception as e:
-                        print(e)
-                    if file_processed:
-                        if art_uploaded:
-                            if self._cancel:
-                                return
-                            update_page_url(session, document.id, f"/static/documents/{document.id}/page.pdf")
-                            update_art_url(session, document.id, f"/static/documents/{document.id}/art.pdf")
-                            self.processed_articles.append((candidate_id, "Portal document inserted"))
-                        else:
-                            self.processed_articles.append((candidate_id, "Portal document inserted without uploading"))
+                        self.processed_articles.append((candidate_id, "Portal document inserted"))
                     else:
-                        self.processed_articles.append((candidate_id, "Portal document not inserted"))
+                        self.processed_articles.append((candidate_id, "Portal document inserted without uploading"))
+                else:
+                    self.processed_articles.append((candidate_id, "Portal document not inserted"))
             else:
                 if self._cancel:
                     return
-                update_candidate(session, candidate_id, '101', g_status, status_writer)
+                update_candidate_status(candidate_id, '101', g_status, status_writer)
                 self.processed_articles.append((candidate_id,
                                                 f"Article not inserted. "
-                                                f"An identical article was found at id = {check_if_exists[0].id}. "
+                                                f"An identical article was found at id = {existing_id}. "
                                                 f"Updating status to 101"))
 
     def flush_files(self):

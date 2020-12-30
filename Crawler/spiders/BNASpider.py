@@ -9,9 +9,8 @@ from scrapy.spiders import Spider
 from w3lib.html import remove_tags
 
 from Crawler.items import PageItem
-from db import dbconn
+from repositories import repo_handler
 from db.databasemodels import ArchiveSearch, ArchiveSearchCount
-from db.db_session import session_scope
 from Crawler.utils import headers
 from Crawler.utils.ocr import get_ocr_bna
 from Crawler.utils.search_terms import RecoveryAdvancedSearchTerms, AdvancedSearchTerms, RecoverySearchTerms
@@ -29,12 +28,11 @@ class GeneralBNASpider(Spider):
     # todo: ask to user if want to recover fast or slow
     # TODO: change recovery implementation to multi-entries
 
-    def __init__(self, search_terms, advanced=False, generate_json=False, split=None, recovery=False,
+    def __init__(self, search_terms, advanced=False, split=None, recovery=False,
                  *args, **kwargs):
         super(GeneralBNASpider, self).__init__(*args, **kwargs)
         self.searches = []
         self.n_search = 0
-        self.generate_json = generate_json
         self.headers = headers
 
         self.url_count = 0
@@ -182,11 +180,10 @@ class GeneralBNASpider(Spider):
             with open(f'recovery.{self.search_terms.id}', 'r') as recovery_file:
                 lines = recovery_file.read().splitlines()
                 self.start_from_row = int(lines[0])
-                self.generate_json = lines[3] == "True"
-                self.advanced = lines[4] == isinstance(self.search_terms, AdvancedSearchTerms)
-                self.recover_url = lines[5]
-                self.split = lines[6]
-                self.rec_date_partition = int(lines[7])
+                self.advanced = lines[3] == isinstance(self.search_terms, AdvancedSearchTerms)
+                self.recover_url = lines[4]
+                self.split = lines[5]
+                self.rec_date_partition = int(lines[6])
         except FileNotFoundError:
             raise Exception(f"Recovery file for search id: {self.search_terms.id} not found")
 
@@ -236,20 +233,11 @@ class GeneralBNASpider(Spider):
         search = response.meta['search']
         advanced_search = search["advanced_search"]
         archive_search = search["search_db"]
-        # if self.advanced:
-        #     print(f'Crawling page {self.page_count} - "{advanced_search.get_basic_search_string()} '
-        #           f'[{advanced_search.fromdate} - {advanced_search.todate}]"')
-        # else:
-        #     print(f'Crawling page {self.page_count} - "{archive_search.search_text} '
-        #           f'[{archive_search.archive_date_start} - {archive_search.archive_date_end}]"')
 
         search_id = archive_search.id
         if search_id == 0 or search_id is None:
-            with session_scope() as session:
-                dbconn.insert_search(session, archive_search)
-                print("Search inserted into the database", "Search id: ", archive_search.id)
-                search_id = archive_search.id
-                session.expunge(archive_search)
+            search_id = repo_handler.insert_search(archive_search)
+            print("Search inserted into the database", "Search id: ", search_id)
         search["search_db"].id = search_id
 
         all_articles = response.selector.css('article.bna-card')
@@ -258,7 +246,6 @@ class GeneralBNASpider(Spider):
             page = PageItem()
             page["search_index"] = self.n_search
             page['site'] = self.site_name
-            page['generate_json'] = self.generate_json
             page['search_id'] = search_id
             page['total_articles'] = self.total_articles
             if self.advanced:
@@ -336,7 +323,6 @@ class GeneralBNASpider(Spider):
             values = [str(row + self.start_from_row),
                       str(last_search),
                       "False",
-                      str(self.generate_json),
                       str(self.advanced),
                       next_page,
                       str(self.split),
@@ -379,9 +365,9 @@ class GeneralBNASpider(Spider):
 class BNASpiderWithLogin(GeneralBNASpider):
     name = "BNAWithLogin"
 
-    def __init__(self, search_terms, advanced=False, generate_json=False, split=None, recovery=False,
+    def __init__(self, search_terms, advanced=False, split=None, recovery=False,
                  *args, **kwargs):
-        super().__init__(search_terms, advanced, generate_json, split, recovery, *args, **kwargs)
+        super().__init__(search_terms, advanced, split, recovery, *args, **kwargs)
         self.login_details = configuration.get_login_details()
 
     def start_requests(self):
@@ -430,7 +416,6 @@ class BNASpiderWithLogin(GeneralBNASpider):
             values = [str(row + self.start_from_row),
                       str(last_search),
                       "False",
-                      str(self.generate_json),
                       str(self.advanced),
                       next_page,
                       str(self.split),

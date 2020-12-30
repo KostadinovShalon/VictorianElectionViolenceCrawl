@@ -13,11 +13,8 @@ crochet.setup()
 
 
 def create_app():
-    print(configuration.server_variables())
-    print(configuration.bna_variables())
-    print(configuration.db_variables())
     db_var = configuration.db_variables()
-    db_session.change_session_data(**db_var)
+    db_session.change_session_data(db_var["user"], db_var["password"], db_var["host"])
     logging.basicConfig(stream=sys.stderr, level=logging.ERROR)
 
     # create and configure the app

@@ -1,10 +1,8 @@
 import requests
-from bs4 import BeautifulSoup
 
 import configuration
 from Crawler.utils.ocr import get_ocr_bna
-from db.databasemodels import CandidateDocument
-from db.db_session import session_scope
+from repositories.candidates_repo import get_candidate, update_candidate_ocr
 
 
 def update_ocr(candidate_id):
@@ -15,18 +13,13 @@ def update_ocr(candidate_id):
         "RememberMe": login_details["remember_me"],
         "NextPage": login_details["next_page"]
     }
-    with session_scope() as session:
-        document = session.query(CandidateDocument.url) \
-            .filter(CandidateDocument.id == candidate_id).first()
-        bna_session = requests.Session()
-        bna_session.post(login_details["login_url"], data=payload, headers=login_details["headers"])
+    bna_session = requests.Session()
+    bna_session.post(login_details["login_url"], data=payload, headers=login_details["headers"])
 
-        ocr = None
-        if 'britishnewspaper' in document.url:
-            ocr = get_ocr_bna(document.url, session=bna_session)
-        if ocr is not None:
-            session.query(CandidateDocument). \
-                filter(CandidateDocument.id == candidate_id). \
-                update(values={"ocr": ocr.encode('latin-1', 'ignore')})
-            session.commit()
+    ocr = None
+    document = get_candidate(candidate_id)
+    if 'britishnewspaper' in document.url:
+        ocr = get_ocr_bna(document.url, session=bna_session)
+    if ocr is not None:
+        update_candidate_ocr(candidate_id, ocr.encode('utf8', 'replace').decode('cp1252', 'ignore'))
     return ocr

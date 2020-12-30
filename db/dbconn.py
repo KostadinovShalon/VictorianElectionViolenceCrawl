@@ -26,7 +26,8 @@ def update_page_url(session, document_id, page_url):
             filter(PortalDocument.id == document_id). \
             update(values={"pdf_page_location": page_url})
         session.commit()
-    except:
+    except Exception as e:
+        print(e)
         session.rollback()
 
 

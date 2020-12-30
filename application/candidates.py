@@ -1,14 +1,12 @@
 import crochet
 from flask import Blueprint, request, jsonify, send_file
-from sqlalchemy import func
 
 from FilesHandler.download_candidates import CandidateDownloader
 from FilesHandler.ocr_updater import update_ocr
-from db.databasemodels import ArchiveSearchResult, CandidateDocument
-from db.db_session import session_scope
 from FilesHandler.BNAHandler import BNAHandler
 
 import configuration
+from repositories.candidates_repo import get_candidates
 
 bp = Blueprint('candidates', __name__, url_prefix='/candidates')
 
@@ -33,7 +31,8 @@ def candidates():
         page = int(request.args.get("page")) - 1 if request.args.get("page") is not None else 0
         sortBy = request.args.get("sortby")
         sortDesc = int(request.args.get("desc")) if request.args.get("desc") is not None else 0
-        return jsonify(get_candidates(ids, limit, page, sortBy, sortDesc))
+        cands, total = get_candidates(ids, limit, page, sortBy, sortDesc)
+        return jsonify({"candidates": cands, "total": total})
     else:
         if current_activity_info["uploading"] and isinstance(candidate_downloader, CandidateDownloader):
             current_activity_info["total"] = len(candidate_downloader.articles_to_process)
@@ -53,7 +52,11 @@ def get_article_preview():
     handler = BNAHandler(candidate_id, configuration.get_login_details())
     handler.download_full_pages()
     handler.create_cropped_image()
-    return send_file("../" + handler.temp_cropped_file_pdf_name)
+    db_vars = configuration.db_variables()
+    if db_vars["local"]:
+        return send_file(handler.temp_cropped_file_pdf_name)
+    else:
+        return send_file("../" + handler.temp_cropped_file_pdf_name)
 
 
 @bp.route('/stop', methods=("DELETE",))
@@ -73,9 +76,9 @@ def update_candidate_ocr():
     _id = request.data
     if _id:
         ocr = update_ocr(int(_id))
-        return ocr if ocr is not None else ("", 404)
+        return ocr if ocr is not None else ("fail", 404)
     else:
-        return "", 404
+        return "fail", 404
 
 
 @crochet.run_in_reactor
@@ -89,56 +92,3 @@ def start_candidates_processing(articles):
     candidate_downloader.flush_files()
     current_activity_info["uploading"] = False
 
-
-def get_candidates(ids, limit, page, sort_by, desc):
-    cands = []
-    with session_scope() as session:
-        needing_coding = session.query(CandidateDocument) \
-            .filter(CandidateDocument.status != '0') \
-            .filter(CandidateDocument.status != "1")
-        if ids is not None:
-            results = session.query(ArchiveSearchResult.url) \
-                .filter(ArchiveSearchResult.archive_search_id.in_(ids))
-            needing_coding = needing_coding.filter(CandidateDocument.url.in_(results))
-        # fieldnames = ['id', 'url', 'publication_title', 'description', 'status',
-        #               'g_status', 'title', 'status_writer']
-        if sort_by is not None and sort_by in ["id", "title", "publication_title", "publication_location", "status",
-                                               "publication_date", "description"]:
-            if sort_by == "id":
-                needing_coding = needing_coding.order_by(CandidateDocument.id.desc()) if desc \
-                    else needing_coding.order_by(CandidateDocument.id)
-            if sort_by == "description":
-                needing_coding = needing_coding.order_by(CandidateDocument.description.desc()) if desc \
-                    else needing_coding.order_by(CandidateDocument.description)
-            elif sort_by == "title":
-                needing_coding = needing_coding.order_by(CandidateDocument.title.desc()) if desc \
-                    else needing_coding.order_by(CandidateDocument.title)
-            elif sort_by == "publication_title":
-                needing_coding = needing_coding.order_by(CandidateDocument.publication_title.desc()) if desc \
-                    else needing_coding.order_by(CandidateDocument.publication_title)
-            elif sort_by == "publication_location":
-                needing_coding = needing_coding.order_by(CandidateDocument.publication_location.desc()) if desc \
-                    else needing_coding.order_by(CandidateDocument.publication_location)
-            elif sort_by == "status":
-                needing_coding = needing_coding.order_by(CandidateDocument.status.desc()) if desc \
-                    else needing_coding.order_by(CandidateDocument.status)
-            else:
-                needing_coding = needing_coding.order_by(CandidateDocument.publication_date.desc()) if desc \
-                    else needing_coding.order_by(CandidateDocument.publication_date)
-        else:
-            needing_coding = needing_coding.order_by(CandidateDocument.id.desc())
-        needing_coding = needing_coding.limit(limit).offset(limit * page)
-        cands += [r.to_dict() for r in needing_coding.all()]
-    return {"candidates": cands, "total": get_count_candidates(ids)}
-
-
-def get_count_candidates(ids):
-    with session_scope() as session:
-        results = session.query(func.count(CandidateDocument.id)) \
-            .filter(CandidateDocument.status != '0') \
-            .filter(CandidateDocument.status != "1")
-        if ids is not None:
-            search_urls = session.query(ArchiveSearchResult.url) \
-                .filter(ArchiveSearchResult.archive_search_id.in_(ids))
-            results = results.filter(CandidateDocument.url.in_(search_urls))
-    return results.first()[0]
