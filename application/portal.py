@@ -1,11 +1,8 @@
-import os
-
 import crochet
 from flask import Blueprint, request, jsonify, send_file
 
 from FilesHandler.portal_document_updater import PortalDocumentsUpdater
 from repositories.portal_documents_repo import get_portal_documents, get_portal_document
-import configuration
 
 bp = Blueprint('portal', __name__, url_prefix='/portal')
 

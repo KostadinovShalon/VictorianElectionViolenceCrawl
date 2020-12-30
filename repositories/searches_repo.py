@@ -13,6 +13,8 @@ time_format = "%Y-%m-%d"
 
 
 def get_searches(limit, page, sort_by, sort_desc):
+    results = None
+    total = 0
     db_vars = configuration.db_variables()
     if db_vars["local"]:
         path = os.path.join(db_vars["data_dir"], f"{ArchiveSearch.__tablename__}.csv")
@@ -35,7 +37,6 @@ def get_searches(limit, page, sort_by, sort_desc):
 
             df = df.iloc[limit*page:limit*page + limit]
             total = len(df)
-
             results = []
             for _, d in df.iterrows():
                 d = d.where(pd.notnull(d), None)
@@ -67,9 +68,6 @@ def get_searches(limit, page, sort_by, sort_desc):
                     'timestamp': tmstmp,
                 }
                 results.append(ArchiveSearch(**load))
-            return results, total
-        else:
-            return None, None
     else:
         with session_scope() as session:
             results = session.query(ArchiveSearch)
@@ -92,12 +90,17 @@ def get_searches(limit, page, sort_by, sort_desc):
                         else results.order_by(ArchiveSearch.timestamp)
             else:
                 results = results.order_by(ArchiveSearch.id.desc())
-            results = results.limit(limit).offset(limit * page)
+            results = results.limit(limit).offset(limit * page).all()
             total = session.query(func.count(ArchiveSearch.id)).first()[0]
-        return results.all(), total
+            session.expunge_all()
+    if results is not None:
+        results = [r.to_dict() for r in results]
+    return results, total
 
 
 def get_searches_count(limit, page, sort_by, sort_desc):
+    results = None
+    total = 0
     db_vars = configuration.db_variables()
     if db_vars["local"]:
         path = os.path.join(db_vars["data_dir"], f"{ArchiveSearchCount.__tablename__}.csv")
@@ -153,9 +156,6 @@ def get_searches_count(limit, page, sort_by, sort_desc):
                     'results_count': d['results_count']
                 }
                 results.append(ArchiveSearchCount(**load))
-            return results, total
-        else:
-            return None, None
     else:
         with session_scope() as session:
             results = session.query(ArchiveSearchCount)
@@ -180,6 +180,24 @@ def get_searches_count(limit, page, sort_by, sort_desc):
                         else results.order_by(ArchiveSearchCount.timestamp)
             else:
                 results = results.order_by(ArchiveSearchCount.id.desc())
-            results = results.limit(limit).offset(limit * page)
+            results = results.limit(limit).offset(limit * page).all()
             total = session.query(func.count(ArchiveSearchCount.id)).first()[0]
-        return results.all(), total
+            session.expunge_all()
+    if results is not None:
+        results = [r.to_dict() for r in results]
+    return results, total
+
+
+def get_total_searches():
+    total = 0
+
+    db_vars = configuration.db_variables()
+    if db_vars["local"]:
+        path = os.path.join(db_vars["data_dir"], f"{ArchiveSearch.__tablename__}.csv")
+        if os.path.exists(path):
+            total = len(pd.read_csv(path))
+    else:
+        with session_scope() as session:
+            total = session.query(func.count(ArchiveSearch.id)).first()[0]
+            session.expunge_all()
+    return total

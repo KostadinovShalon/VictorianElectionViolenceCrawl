@@ -55,7 +55,8 @@ def update_candidate_status(candidate_id, status, g_status, status_writer):
         path = os.path.join(db_vars["data_dir"], f"{CandidateDocument.__tablename__}.csv")
         if os.path.exists(path):
             df = pd.read_csv(path)
-            df.loc[df.id == candidate_id, ("status", "g_status", "status_writer")] = str(status), str(g_status), status_writer
+            df.loc[df.id == candidate_id, ("status", "g_status", "status_writer")] = \
+                str(status), str(g_status), status_writer
             df.to_csv(path, mode='w', index=False)
     else:
         with session_scope() as session:
@@ -213,14 +214,14 @@ def get_candidates(ids, limit, page, sort_by, sort_desc):
             else:
                 needing_coding = needing_coding.order_by(CandidateDocument.id.desc())
             cands = needing_coding.limit(limit).offset(limit * page).all()
-            total = get_count_candidates(ids)
+            total = get_remote_count_candidates(ids)
             session.expunge_all()
     if cands is not None:
         cands = [r.to_dict() for r in cands]
     return cands, total
 
 
-def get_count_candidates(ids):
+def get_remote_count_candidates(ids=None):
     with session_scope() as session:
         results = session.query(func.count(CandidateDocument.id)) \
             .filter(CandidateDocument.status != '0') \
@@ -231,3 +232,18 @@ def get_count_candidates(ids):
             results = results.filter(CandidateDocument.url.in_(search_urls))
         session.expunge_all()
     return results.first()[0]
+
+
+def get_total_candidates():
+    total = 0
+
+    db_vars = configuration.db_variables()
+    if db_vars["local"]:
+        path = os.path.join(db_vars["data_dir"], f"{CandidateDocument.__tablename__}.csv")
+        if os.path.exists(path):
+            cands = pd.read_csv(path)
+            cands = cands.loc[cands.status != 0].loc[cands.status != 1]
+            total = len(cands)
+    else:
+        total = get_remote_count_candidates()
+    return total

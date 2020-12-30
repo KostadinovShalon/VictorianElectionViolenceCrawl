@@ -14,7 +14,8 @@ crochet.setup()
 
 def create_app():
     db_var = configuration.db_variables()
-    db_session.change_session_data(db_var["user"], db_var["password"], db_var["host"])
+    if db_var["host"] is not None and db_var["user"] is not None:
+        db_session.change_session_data(db_var["user"], db_var["password"], db_var["host"])
     logging.basicConfig(stream=sys.stderr, level=logging.ERROR)
 
     # create and configure the app
@@ -29,11 +30,12 @@ def create_app():
     except OSError:
         pass
 
-    from . import search, setup, candidates, portal
+    from . import search, setup, candidates, portal, dashboard
     app.register_blueprint(search.bp)
     app.register_blueprint(setup.bp)
     app.register_blueprint(candidates.bp)
     app.register_blueprint(portal.bp)
+    app.register_blueprint(dashboard.bp)
 
     CORS(app)
 

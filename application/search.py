@@ -200,8 +200,6 @@ def get_searches():
     sortBy = request.args.get("sortby")  # posible values: id, from date, to date, keyword, time
     sortDesc = int(request.args.get("desc")) if request.args.get("desc") is not None else 0  # 1 or 0
     results, total = searches_repo.get_searches(limit, page, sortBy, sortDesc)
-    if results is not None:
-        results = [r.to_dict() for r in results]
     return jsonify({"results": results, "total": total})
 
 
@@ -213,7 +211,5 @@ def get_searches_count():
     sortBy = request.args.get("sortby")  # posible values: id, from date, to date, keyword, time
     sortDesc = int(request.args.get("desc")) if request.args.get("desc") is not None else 0  # 1 or 0
     results, total = searches_repo.get_searches_count(limit, page, sortBy, sortDesc)
-    if results is not None:
-        results = [r.to_dict() for r in results]
     return jsonify({"results": results, "total": total})
 

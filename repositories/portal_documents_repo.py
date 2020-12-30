@@ -199,3 +199,18 @@ def get_portal_documents(limit, page, sort_by, sort_desc):
             if doc["cropped_pdf_uri"] is not None and doc["cropped_pdf_uri"] != "":
                 doc["cropped_pdf_uri"] = "https://coders.victorianelectionviolence.uk" + doc["cropped_pdf_uri"]
     return docs, total
+
+
+def get_total_portal_documents():
+    total = 0
+
+    db_vars = configuration.db_variables()
+    if db_vars["local"]:
+        path = os.path.join(db_vars["data_dir"], f"{PortalDocument.__tablename__}.csv")
+        if os.path.exists(path):
+            total = len(pd.read_csv(path))
+    else:
+        with session_scope() as session:
+            total = session.query(func.count(PortalDocument.id)).first()[0]
+            session.expunge_all()
+    return total
