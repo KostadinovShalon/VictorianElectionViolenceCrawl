@@ -46,6 +46,7 @@ class GeneralBNASpider(Spider):
         self.page_count = 0
         self.split = None
         self.total_articles = 0
+        self.derived_search_terms = []
 
         try:
             self.split = int(split)
@@ -104,6 +105,7 @@ class GeneralBNASpider(Spider):
                                                   search_db=archive_search,
                                                   advanced_search=derived_search))
                         date_partition += 1
+                        self.derived_search_terms.append(derived_search.to_dict())
                 else:
                     url = self.recover_url if self.recovery and first else advanced_search.get_url()
                     first = False
@@ -173,6 +175,7 @@ class GeneralBNASpider(Spider):
                                           date_partition=date_partition,
                                           search_db=archive_search,
                                           advanced_search=None))
+                self.derived_search_terms.append(derived_search.to_dict())
             self.rec_date_partition = -1
 
     def _read_recovery_file(self):

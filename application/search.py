@@ -44,10 +44,11 @@ def start_search():
             print(f"{request.json}")
             mode = request.json["mode"]
             ocr = request.json["ocr"] if "ocr" in request.json else False
+            split = request.json["split"] if "split" in request.json else False
             print(mode == "advanced")
             input_search_terms = request.json["terms"]
             search_terms = get_search_terms_instances(input_search_terms, mode == 'advanced')
-            scrape_with_crochet(mode == "advanced", search_terms, ocr)
+            scrape_with_crochet(mode == "advanced", search_terms, ocr, split)
             current_activity_info = {"search_terms": input_search_terms, "search_index": 0, "downloaded_articles": [],
                                      "total_articles": [], "scrapping": True}
             scrape_in_progress = True
@@ -105,14 +106,14 @@ def download_status():
 
 
 @crochet.run_in_reactor
-def scrape_with_crochet(advanced, search_terms, ocr):
+def scrape_with_crochet(advanced, search_terms, ocr, split=None):
     current_activity_info["scrapping"] = True
     dispatcher.connect(_item_scraped, signal=signals.item_scraped)
     if ocr:
         eventual = crawl_runner.crawl(BNASpiderWithLogin, advanced=advanced,
-                                      search_terms=search_terms)
+                                      search_terms=search_terms, split=split)
     else:
-        eventual = crawl_runner.crawl(GeneralBNASpider, advanced=advanced, search_terms=search_terms)
+        eventual = crawl_runner.crawl(GeneralBNASpider, advanced=advanced, search_terms=search_terms, split=split)
     eventual.addCallback(finished_scrape)
 
 
@@ -130,7 +131,11 @@ def finished_scrape(*args):
 def _item_scraped(item, response, spider):
     global current_activity_info
     current_activity_info["search_index"] = item["search_index"]
+    current_activity_info["search_terms"] = spider.derived_search_terms
     if item["search_index"] >= len(current_activity_info["total_articles"]):
+        for _ in range(item["search_index"] - len(current_activity_info["total_articles"]) ):
+            current_activity_info["total_articles"].append(0)
+            current_activity_info["downloaded_articles"].append(0)
         current_activity_info["total_articles"].append(item["total_articles"])
         current_activity_info["downloaded_articles"].append(0)
     current_activity_info["downloaded_articles"][-1] += 1
@@ -148,8 +153,9 @@ def start_count():
             mode = request.json["mode"]
             print(mode == "advanced")
             input_search_terms = request.json["terms"]
+            split = request.json["split"] if "split" in request.json else False
             search_terms = get_search_terms_instances(input_search_terms, mode == 'advanced')
-            count_with_crochet(mode == "advanced", search_terms)
+            count_with_crochet(mode == "advanced", search_terms, split)
             count_activity_info = {
                 "search_terms": input_search_terms,
                 "total_articles": [],
@@ -161,9 +167,9 @@ def start_count():
 
 
 @crochet.run_in_reactor
-def count_with_crochet(advanced, search_terms):
+def count_with_crochet(advanced, search_terms, split):
     dispatcher.connect(_item_counted, signal=signals.item_scraped)
-    eventual = crawl_runner.crawl(BNACountSpider, advanced=advanced, search_terms=search_terms)
+    eventual = crawl_runner.crawl(BNACountSpider, advanced=advanced, search_terms=search_terms, split=split)
     eventual.addCallback(finished_count)
 
 
@@ -180,6 +186,7 @@ def finished_count(*args):
 
 def _item_counted(item, response, spider):
     global count_activity_info
+    count_activity_info["search_terms"] = spider.derived_search_terms
     if item["search_index"] >= len(count_activity_info["total_articles"]):
         count_activity_info["total_articles"].append(item["search_count"])
 

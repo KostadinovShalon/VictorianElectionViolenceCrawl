@@ -15,6 +15,13 @@ class SearchTerms:
         return "Search (search text = '%s', start = '%s', end = '%s')" % (
             self.search_text, self.start_date, self.end_date)
 
+    def to_dict(self):
+        return {
+            "keyword": self.search_text,
+            "start_date": self.start_date,
+            "end_date": self.end_date,
+        }
+
 
 class RecoverySearchTerms(SearchTerms):
 
@@ -141,6 +148,25 @@ class AdvancedSearchTerms(SearchTerms):
 
     def __repr__(self):
         return "Advanced " + super().__repr__()
+
+    def to_dict(self):
+        return {
+            "fromDate": self.start_date,
+            "toDate": self.end_date,
+            "fromDateAddedToSystem": self.added_start_date,
+            "toDateAddedToSystem": self.start_date,
+            "articleType": self.added_end_date,
+            "useExactPhrase": self.article_type,
+            "exactSearch": self.exact_search,
+            "excludeWords": self.exclude_words,
+            "frontPageArticlesOnly": self.front_page,
+            "newspaperTitle": self.newspaper_title,
+            "publicationPlace": self.publication_place,
+            "searchAllWords": self.all_words,
+            "searchSomeWords": self.some_words,
+            "sortResultsBy": self.sort_by,
+            "tags": self.tags,
+        }
 
 
 class RecoveryAdvancedSearchTerms(AdvancedSearchTerms):
