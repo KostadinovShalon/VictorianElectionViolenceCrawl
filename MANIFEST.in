@@ -1,4 +1,0 @@
-include README.md
-include changelog.md
-include scrapy.cfg
-global-exclude *.pyc
