@@ -29,8 +29,8 @@ basic_config = {
 
 
 # Getters
-def server_variables(prepend='.'):
-    path = os.path.join(prepend, "application", "configuration", "cfg.yaml")
+def server_variables():
+    path = "cfg.yaml"
     if not os.path.exists(path):
         write_config(path, basic_config)
     with open(path, "r") as f:
@@ -46,8 +46,8 @@ def server_variables(prepend='.'):
     }
 
 
-def bna_variables(prepend="."):
-    path = os.path.join(prepend, "application", "configuration", "cfg.yaml")
+def bna_variables():
+    path = "cfg.yaml"
     if not os.path.exists(path):
         write_config(path, basic_config)
     with open(path, "r") as f:
@@ -58,8 +58,8 @@ def bna_variables(prepend="."):
     }
 
 
-def get_login_details(prepend="."):
-    user_details = bna_variables(prepend)
+def get_login_details():
+    user_details = bna_variables()
     return {
         "username": user_details["username"],
         "password": user_details["password"],
@@ -84,8 +84,8 @@ def get_login_details(prepend="."):
     }
 
 
-def db_variables(prepend='.'):
-    path = os.path.join(prepend, "application", "configuration", "cfg.yaml")
+def db_variables():
+    path = "cfg.yaml"
     if not os.path.exists(path):
         write_config(path, basic_config)
     with open(path, "r") as f:
@@ -108,8 +108,8 @@ def _get_cfg(path):
         return yaml.full_load(open(path, "r"))
 
 
-def set_server_variables(user, password, host, prepend='.'):
-    path = os.path.join(prepend, "application", "configuration", "cfg.yaml")
+def set_server_variables(user, password, host):
+    path = "cfg.yaml"
     cfg = _get_cfg(path)
     cfg["files"]["user"] = user
     cfg["files"]["password"] = password
@@ -117,17 +117,17 @@ def set_server_variables(user, password, host, prepend='.'):
     write_config(path, cfg)
 
 
-def set_bna_variables(user, password, prepend='.'):
-    path = os.path.join(prepend, "application", "configuration", "cfg.yaml")
+def set_bna_variables(user, password):
+    path = "cfg.yaml"
     cfg = _get_cfg(path)
     cfg["bna"]["user"] = user
     cfg["bna"]["password"] = password
     write_config(path, cfg)
 
 
-def set_db_variables(user, password, host, local, data_dir, files_dir="files", port=3306, prepend='.'):
+def set_db_variables(user, password, host, local, data_dir, files_dir="files", port=3306):
     if local:
-        path = os.path.join(prepend, "application", "configuration", "cfg.yaml")
+        path = "cfg.yaml"
         cfg = _get_cfg(path)
         cfg["local"]["enabled"] = local
         if local:
@@ -135,7 +135,7 @@ def set_db_variables(user, password, host, local, data_dir, files_dir="files", p
             cfg["local"]["files_dir"] = files_dir
         write_config(path, cfg)
     else:
-        path = os.path.join(prepend, "application", "configuration", "cfg.yaml")
+        path = "cfg.yaml"
         cfg = _get_cfg(path)
         cfg["db"]["user"] = user
         cfg["db"]["password"] = password
@@ -144,7 +144,6 @@ def set_db_variables(user, password, host, local, data_dir, files_dir="files", p
         cfg["local"]["enabled"] = False
         write_config(path, cfg)
         db_session.change_session_data(user, password, host)
-
 
 
 def write_config(path, cfg):

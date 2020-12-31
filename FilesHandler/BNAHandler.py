@@ -1,7 +1,7 @@
 import os
 import shutil
 from io import BytesIO
-import configuration
+from repositories import configuration
 
 import requests
 from PIL import Image, ImageEnhance

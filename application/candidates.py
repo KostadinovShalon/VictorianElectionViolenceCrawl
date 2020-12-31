@@ -5,7 +5,7 @@ from FilesHandler.download_candidates import CandidateDownloader
 from FilesHandler.ocr_updater import update_ocr
 from FilesHandler.BNAHandler import BNAHandler
 
-import configuration
+from repositories import configuration
 from repositories.candidates_repo import get_candidates
 
 bp = Blueprint('candidates', __name__, url_prefix='/candidates')

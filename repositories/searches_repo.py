@@ -1,11 +1,10 @@
 import os
 from datetime import datetime
 
-import numpy as np
 import pandas as pd
 from sqlalchemy import func
 
-import configuration
+from repositories import configuration
 from db.databasemodels import ArchiveSearch, ArchiveSearchCount
 from db.db_session import session_scope
 

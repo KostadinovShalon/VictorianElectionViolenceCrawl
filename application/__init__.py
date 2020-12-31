@@ -6,8 +6,7 @@ from flask_cors import CORS
 from db import db_session
 import logging
 import sys
-import configuration
-
+from repositories import configuration
 
 crochet.setup()
 

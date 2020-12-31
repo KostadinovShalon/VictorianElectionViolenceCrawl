@@ -1,5 +1,5 @@
 from paramiko import Transport, SFTPClient
-import configuration
+from repositories import configuration
 
 
 def upload_file(document_id, file_to_upload, filename):

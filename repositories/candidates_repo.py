@@ -3,7 +3,7 @@ from datetime import datetime
 
 from sqlalchemy import func
 
-import configuration
+from repositories import configuration
 from db.databasemodels import CandidateDocument, ArchiveSearchResult
 from db.db_session import session_scope
 import pandas as pd

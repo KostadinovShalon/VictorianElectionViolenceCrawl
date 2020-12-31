@@ -1,7 +1,7 @@
 import os
 from datetime import datetime
 
-import configuration
+from repositories import configuration
 from db import dbconn
 from db.db_session import session_scope
 import pandas as pd

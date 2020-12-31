@@ -1,6 +1,6 @@
 import requests
 
-import configuration
+from repositories import configuration
 from Crawler.utils.ocr import get_ocr_bna
 from repositories.candidates_repo import get_candidate, update_candidate_ocr
 

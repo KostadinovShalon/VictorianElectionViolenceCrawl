@@ -23,4 +23,7 @@ Crawler/Records/*
 
 # Virtual environment
 venv/
+build/
+dist/
+vev_crawler.egg-info/
 

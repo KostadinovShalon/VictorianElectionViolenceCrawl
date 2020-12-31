@@ -4,7 +4,7 @@ from Crawler.utils import bna_login_url, headers
 from FilesHandler.BNAHandler import BNAHandler
 from db.databasemodels import PortalDocument
 from Crawler.utils.ocr import get_ocr_bna
-import configuration
+from repositories import configuration
 from repositories.candidates_repo import update_candidate_status, get_candidate
 from repositories.portal_documents_repo import check_if_portal_exists, update_portal_page_url, update_portal_cropped_url
 from repositories.repo_handler import insert

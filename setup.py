@@ -2,7 +2,7 @@ from setuptools import find_packages, setup
 
 setup(
     name='vev_crawler',
-    version='2.0.0',
+    version='2.0.5',
     python_requires='>=3',
     author='Brian K Isaac Medina',
     url='https://github.com/KostadinovShalon/VictorianElectionViolenceCrawl',
@@ -23,6 +23,8 @@ setup(
         "PyYAML~=5.3.1",
         "pandas~=1.2.0",
         "numpy~=1.19.4",
-        "wheel"
+        "wheel",
+        "waitress",
+        "flask-cors"
     ],
 )

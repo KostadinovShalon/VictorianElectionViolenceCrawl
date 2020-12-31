@@ -9,12 +9,11 @@ from scrapy.spiders import Spider
 from w3lib.html import remove_tags
 
 from Crawler.items import PageItem
-from repositories import repo_handler
+from repositories import repo_handler, configuration
 from db.databasemodels import ArchiveSearch, ArchiveSearchCount
 from Crawler.utils import headers
 from Crawler.utils.ocr import get_ocr_bna
 from Crawler.utils.search_terms import RecoveryAdvancedSearchTerms, AdvancedSearchTerms, RecoverySearchTerms
-import configuration
 
 
 class GeneralBNASpider(Spider):

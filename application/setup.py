@@ -2,7 +2,7 @@ from flask import Blueprint, request, jsonify, redirect, url_for
 from scrapy.crawler import CrawlerRunner
 from Crawler.settings import settings
 from scrapy.settings import Settings
-import configuration
+from repositories import configuration
 
 crawl_runner = CrawlerRunner(Settings(settings))
 scrape_in_progress = False

@@ -1,6 +1,6 @@
 import requests
 
-import configuration
+from repositories import configuration
 from Crawler.utils import bna_login_url, headers
 from FilesHandler.BNAHandler import BNAHandler
 from repositories.portal_documents_repo import get_portal_document, update_portal_page_url, update_portal_cropped_url
