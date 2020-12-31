@@ -114,7 +114,6 @@ alt="IMAGE ALT TEXT HERE" width="240" height="180" border="10" /></a>
 alt="IMAGE ALT TEXT HERE" width="240" height="180" border="10" /></a>
 
 ## Usage
-dyWr_ATT1lw
 <a href="http://www.youtube.com/watch?feature=player_embedded&v=dyWr_ATT1lw
 " target="_blank"><img src="http://img.youtube.com/vi/dyWr_ATT1lw/0.jpg" 
 alt="IMAGE ALT TEXT HERE" width="240" height="180" border="10" /></a>
