@@ -1,0 +1,29 @@
+# See http://help.github.com/ignore-files/ for more about ignoring files.
+#Login details
+Crawler/utils/bna_login_details.py
+# CSV and PYC filers
+*.csv
+!search_ids.csv
+!Crawler/spiders/BNA_search_input.csv
+*.pyc
+
+#IDE files
+/.idea/*
+
+#Cache files
+/.scrapy/*
+
+#Local Records
+Crawler/Records/*
+
+
+*.sql
+*.docx
+
+
+# Virtual environment
+venv/
+build/
+dist/
+vev_crawler.egg-info/
+

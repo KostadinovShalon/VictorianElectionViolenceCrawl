@@ -1,0 +1,16 @@
+bna:
+  password: null
+  user: null
+db:
+  host: null
+  password: null
+  port: 3306
+  user: null
+files:
+  password: null
+  sftp_host: null
+  user: null
+local:
+  data_dir: null
+  enabled: false
+  files_dir: files
