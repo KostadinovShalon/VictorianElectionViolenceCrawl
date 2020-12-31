@@ -125,25 +125,26 @@ def set_bna_variables(user, password, prepend='.'):
     write_config(path, cfg)
 
 
-def set_db_variables(user, password, host, port=3306, prepend='.'):
-    path = os.path.join(prepend, "application", "configuration", "cfg.yaml")
-    cfg = _get_cfg(path)
-    cfg["db"]["user"] = user
-    cfg["db"]["password"] = password
-    cfg["db"]["host"] = host
-    cfg["db"]["port"] = port
-    write_config(path, cfg)
-    db_session.change_session_data(user, password, host)
-
-
-def set_local(local, data_dir=None, files_dir="files", prepend='.'):
-    path = os.path.join(prepend, "application", "configuration", "cfg.yaml")
-    cfg = _get_cfg(path)
-    cfg["local"]["enabled"] = local
+def set_db_variables(user, password, host, local, data_dir, files_dir="files", port=3306, prepend='.'):
     if local:
-        cfg["local"]["data_dir"] = data_dir
-        cfg["local"]["files_dir"] = files_dir
-    write_config(path, cfg)
+        path = os.path.join(prepend, "application", "configuration", "cfg.yaml")
+        cfg = _get_cfg(path)
+        cfg["local"]["enabled"] = local
+        if local:
+            cfg["local"]["data_dir"] = data_dir
+            cfg["local"]["files_dir"] = files_dir
+        write_config(path, cfg)
+    else:
+        path = os.path.join(prepend, "application", "configuration", "cfg.yaml")
+        cfg = _get_cfg(path)
+        cfg["db"]["user"] = user
+        cfg["db"]["password"] = password
+        cfg["db"]["host"] = host
+        cfg["db"]["port"] = port
+        cfg["local"]["enabled"] = False
+        write_config(path, cfg)
+        db_session.change_session_data(user, password, host)
+
 
 
 def write_config(path, cfg):
