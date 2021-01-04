@@ -20,12 +20,12 @@ setup(
         "w3lib~=1.22.0",
         "crochet~=1.12.0",
         "Flask~=1.1.2",
-        "PyYAML~=5.3.1",
         "pandas~=1.2.0",
         "numpy~=1.19.4",
         "mysqlclient~=2.0.3"
         "wheel",
         "waitress",
-        "flask-cors"
+        "flask-cors",
+        "sqlite3"
     ],
 )

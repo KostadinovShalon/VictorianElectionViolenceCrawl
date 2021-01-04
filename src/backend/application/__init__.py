@@ -12,15 +12,13 @@ crochet.setup()
 
 
 def create_app():
-    db_var = configuration.db_variables()
-    if db_var["host"] is not None and db_var["user"] is not None:
-        db_session.change_session_data(db_var["user"], db_var["password"], db_var["host"])
     logging.basicConfig(stream=sys.stderr, level=logging.ERROR)
 
     # create and configure the app
     app = Flask(__name__, instance_relative_config=True)
     app.config.from_mapping(
-        SECRET_KEY='dev'
+        SECRET_KEY='dev',
+        DATABASE=os.path.join(app.instance_path, 'vev.sqlite')
     )
     # ensure the instance folder exists
     try:
@@ -36,5 +34,15 @@ def create_app():
     app.register_blueprint(dashboard.bp)
 
     CORS(app)
+
+    from . import db
+    db.init_app(app)
+
+    try:
+        db_var = configuration.db_variables()
+        if db_var["host"] is not None and db_var["user"] is not None:
+            db_session.change_session_data(db_var["user"], db_var["password"], db_var["host"])
+    except:
+        pass
 
     return app
