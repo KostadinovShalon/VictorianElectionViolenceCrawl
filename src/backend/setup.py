@@ -23,6 +23,7 @@ setup(
         "PyYAML~=5.3.1",
         "pandas~=1.2.0",
         "numpy~=1.19.4",
+        "mysqlclient~=2.0.3"
         "wheel",
         "waitress",
         "flask-cors"
