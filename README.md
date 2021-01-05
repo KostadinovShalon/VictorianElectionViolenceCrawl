@@ -1,8 +1,8 @@
-# Victorian Election Violence Crawler 2.1.2
+# Victorian Election Violence Crawler 2
 The aim of this project is to crawl news from [British Newspaper Archive](https://www.britishnewspaperarchive.co.uk/).
 
 ## Version
-The current version of the project is **2.1.2**. The change history can be seen in the [Change Log](/changelog.md)
+The current version of the project is **2.1.5**. The change history can be seen in the [Change Log](/changelog.md)
 
 ## Requirements
 
@@ -30,7 +30,7 @@ The current version of the project is **2.1.2**. The change history can be seen 
 
 1. Install the crawler 
 
-    `pip install vev_crawler-2.1.0-py3-none-any.whl`
+    `pip install vev_crawler-2.1.5-py3-none-any.whl`
 
 1. **NEW since version 2.1.2** Create configuration database
 
@@ -86,7 +86,7 @@ alt="IMAGE ALT TEXT HERE" width="240" height="180" border="10" /></a>
 
 1. In the anaconda prompt, run the installation file (*more details about what the installation file is doing in the Advanced Installation Section*)
 	
-	`windows_install_2.1.2.bat`
+	`windows_install.bat`
 
 
 **Frontend**
@@ -129,7 +129,7 @@ alt="IMAGE ALT TEXT HERE" width="240" height="180" border="10" /></a>
 
     `conda install -y Twisted`
     
-    `pip install vev_crawler-2.1.2-py3-none-any.whl`
+    `pip install vev_crawler-2.1.5-py3-none-any.whl`
     
     `conda install numpy`
 

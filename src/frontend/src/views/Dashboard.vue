@@ -120,21 +120,55 @@ export default {
         }
     },
     methods: {
-        getDataFromApi() {
-            this.loading_last_searches = true
-            this.loading_last_candidates = true
-            this.loading_last_portal = true
-            axios.get(this.commonurl + "dashboard").then(response =>{
-                if(response.status == 200){
-                    this.dashboard = response.data
-                }
+        getTotalSearches(){
+            axios.get(this.commonurl + "dashboard/total_searches").then(response =>{
+                this.dashboard.searches_count = response.data
             })
-            .catch(() => {})
-            .then(() =>{
+        },
+        getTotalCandidates(){
+            axios.get(this.commonurl + "dashboard/total_candidates").then(response =>{
+                this.dashboard.candidates_count = response.data
+            })
+        },
+        getTotalPortal(){
+            axios.get(this.commonurl + "dashboard/total_portal").then(response =>{
+                this.dashboard.portal_count = response.data
+            })
+        },
+        getLastSearches(){
+            this.loading_last_searches = true
+            axios.get(this.commonurl + "dashboard/last_searches").then(response =>{
+                this.dashboard.last_searches = response.data
+            }).catch(() => {})
+            .then(() => {
                 this.loading_last_searches = false
+            })
+        },
+        getLastCandidates(){
+            this.loading_last_candidates = true
+            axios.get(this.commonurl + "dashboard/last_candidates").then(response =>{
+                this.dashboard.last_candidates = response.data
+            }).catch(() => {})
+            .then(() => {
                 this.loading_last_candidates = false
+            })
+        },
+        getLastPortal(){
+            this.loading_last_portal = true
+            axios.get(this.commonurl + "dashboard/last_portal").then(response =>{
+                this.dashboard.last_portal = response.data
+            }).catch(() => {})
+            .then(() => {
                 this.loading_last_portal = false
             })
+        },
+        getDataFromApi() {
+            this.getTotalSearches();
+            this.getTotalCandidates();
+            this.getTotalPortal();
+            this.getLastSearches();
+            this.getLastCandidates();
+            this.getLastPortal();
         }
     },
     mounted(){

@@ -182,8 +182,7 @@ def get_candidates(ids, limit, page, sort_by, sort_desc):
     else:
         with session_scope() as session:
             needing_coding = session.query(CandidateDocument) \
-                .filter(CandidateDocument.status != '0') \
-                .filter(CandidateDocument.status != "1")
+                .filter(CandidateDocument.status.notin_(('0', '1')))
             if ids is not None:
                 results = session.query(ArchiveSearchResult.url) \
                     .filter(ArchiveSearchResult.archive_search_id.in_(ids))
@@ -223,15 +222,14 @@ def get_candidates(ids, limit, page, sort_by, sort_desc):
 
 def get_remote_count_candidates(ids=None):
     with session_scope() as session:
-        results = session.query(func.count(CandidateDocument.id)) \
-            .filter(CandidateDocument.status != '0') \
-            .filter(CandidateDocument.status != "1")
+        results = session.query(CandidateDocument.id) \
+            .filter(CandidateDocument.status.notin_(("0", "1")))
         if ids is not None:
             search_urls = session.query(ArchiveSearchResult.url) \
                 .filter(ArchiveSearchResult.archive_search_id.in_(ids))
             results = results.filter(CandidateDocument.url.in_(search_urls))
         session.expunge_all()
-    return results.first()[0]
+    return results.count()
 
 
 def get_total_candidates():
