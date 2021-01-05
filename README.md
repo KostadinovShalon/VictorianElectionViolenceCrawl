@@ -33,7 +33,9 @@ The current version of the project is **2.1.2**. The change history can be seen 
     `pip install vev_crawler-2.1.0-py3-none-any.whl`
 
 1. **NEW since version 2.1.2** Create configuration database
+
 	`export FLASK_APP=application`
+	
 	`flask init-db`
 
 
@@ -126,11 +128,15 @@ alt="IMAGE ALT TEXT HERE" width="240" height="180" border="10" /></a>
 1. On the Anaconda prompt, navigate to the project folder and install the following packages
 
     `conda install -y Twisted`
+    
     `pip install vev_crawler-2.1.2-py3-none-any.whl`
+    
     `conda install numpy`
 
 1. Initialize the database
+
 	`set FLASK_APP=application`
+	
 	`flask init-db`
 
 **Frontend** (same process as the basic installation)
@@ -148,6 +154,7 @@ alt="IMAGE ALT TEXT HERE" width="240" height="180" border="10" /></a>
 	`conda activate vevcrawler`
 
 1. Run the following command
+
 	`waitress-serve --call --port 5000 "application:create_app"`
 
 **Frontend**
@@ -158,6 +165,7 @@ alt="IMAGE ALT TEXT HERE" width="240" height="180" border="10" /></a>
 	`cd C:\Users\path\to\the\project\folder`
 
 1. Run the following command
+
 	`serve -s ui -p 8080`
 
 
