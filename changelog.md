@@ -5,8 +5,13 @@ All notable changes since version 1.28.1 are documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [2.1.2] - 2021-01-05
+###Changed
+- A SQLite3 database is used for configuration instead of YAML files
+- Installation process changed 
+
+
 ## [2.0.0] - 2020-11-26
-###Added
 
 ### Changed
 - Python version was updated from 2.7 to 3.6+

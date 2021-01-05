@@ -2,7 +2,7 @@ from setuptools import find_packages, setup
 
 setup(
     name='vev_crawler',
-    version='2.1.0',
+    version='2.1.2',
     python_requires='>=3',
     author='Brian K Isaac Medina',
     url='https://github.com/KostadinovShalon/VictorianElectionViolenceCrawl',
@@ -25,7 +25,6 @@ setup(
         "mysqlclient~=2.0.3",
         "wheel",
         "waitress",
-        "flask-cors",
-        "sqlite3"
+        "flask-cors"
     ],
 )
