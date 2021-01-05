@@ -82,7 +82,7 @@ alt="IMAGE ALT TEXT HERE" width="240" height="180" border="10" /></a>
 
 	`cd C:\Users\path\to\the\project\folder`
 
-1. Run the installation file (*more details about what the installation file is doing in the Advanced Installation Section*)
+1. In the anaconda prompt, run the installation file (*more details about what the installation file is doing in the Advanced Installation Section*)
 	
 	`windows_install_2.1.2.bat`
 
@@ -102,7 +102,7 @@ alt="IMAGE ALT TEXT HERE" width="240" height="180" border="10" /></a>
 
 	`cd C:\Users\path\to\the\project\folder`
 
-1. Run the backend server script
+1. In the anaconda prompt, run the backend server script
 	`start_backend_server.bat`
 
 **Frontend**
