@@ -1,12 +1,10 @@
 from paramiko import Transport, SFTPClient
-from repositories import configuration
 
 
-def upload_file(document_id, file_to_upload, filename):
+def upload_file(document_id, file_to_upload, filename, server_details):
     # noinspection PyTypeChecker
-    server = configuration.server_variables()
-    transport = Transport((server["host"], 22))
-    transport.connect(username=server["user"], password=server["password"])
+    transport = Transport((server_details["host"], 22))
+    transport.connect(username=server_details["user"], password=server_details["password"])
     sftp = SFTPClient.from_transport(transport)
     try:
         sftp.chdir("documents")  # Test if remote_path exists

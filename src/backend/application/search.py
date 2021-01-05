@@ -10,7 +10,7 @@ from scrapy.signalmanager import dispatcher
 from Crawler.settings import settings
 from Crawler.spiders.BNASpider import GeneralBNASpider, BNACountSpider, BNASpiderWithLogin
 from Crawler.utils.search_terms import SearchTerms, AdvancedSearchTerms
-from repositories import searches_repo
+from repositories import searches_repo, configuration
 
 crawl_runner = CrawlerRunner(Settings(settings))
 scrape_in_progress = False
@@ -48,7 +48,7 @@ def start_search():
             print(mode == "advanced")
             input_search_terms = request.json["terms"]
             search_terms = get_search_terms_instances(input_search_terms, mode == 'advanced')
-            scrape_with_crochet(mode == "advanced", search_terms, ocr, split)
+            scrape_with_crochet(configuration.db_variables(), mode == "advanced", search_terms, ocr, split)
             current_activity_info = {"search_terms": input_search_terms, "search_index": 0, "downloaded_articles": [],
                                      "total_articles": [], "scrapping": True}
             scrape_in_progress = True
@@ -106,14 +106,14 @@ def download_status():
 
 
 @crochet.run_in_reactor
-def scrape_with_crochet(advanced, search_terms, ocr, split=None):
+def scrape_with_crochet(db_vars, advanced, search_terms, ocr, split=None):
     current_activity_info["scrapping"] = True
     dispatcher.connect(_item_scraped, signal=signals.item_scraped)
     if ocr:
-        eventual = crawl_runner.crawl(BNASpiderWithLogin, advanced=advanced,
+        eventual = crawl_runner.crawl(BNASpiderWithLogin, db_vars=db_vars, login_details=configuration.get_login_details(), advanced=advanced,
                                       search_terms=search_terms, split=split)
     else:
-        eventual = crawl_runner.crawl(GeneralBNASpider, advanced=advanced, search_terms=search_terms, split=split)
+        eventual = crawl_runner.crawl(GeneralBNASpider, db_vars=db_vars, advanced=advanced, search_terms=search_terms, split=split)
     eventual.addCallback(finished_scrape)
 
 
@@ -155,7 +155,7 @@ def start_count():
             input_search_terms = request.json["terms"]
             split = request.json["split"] if "split" in request.json else False
             search_terms = get_search_terms_instances(input_search_terms, mode == 'advanced')
-            count_with_crochet(mode == "advanced", search_terms, split)
+            count_with_crochet(configuration.db_variables(), mode == "advanced", search_terms, split)
             count_activity_info = {
                 "search_terms": input_search_terms,
                 "total_articles": [],
@@ -167,9 +167,9 @@ def start_count():
 
 
 @crochet.run_in_reactor
-def count_with_crochet(advanced, search_terms, split):
+def count_with_crochet(db_vars, advanced, search_terms, split):
     dispatcher.connect(_item_counted, signal=signals.item_scraped)
-    eventual = crawl_runner.crawl(BNACountSpider, advanced=advanced, search_terms=search_terms, split=split)
+    eventual = crawl_runner.crawl(BNACountSpider, db_vars=db_vars, advanced=advanced, search_terms=search_terms, split=split)
     eventual.addCallback(finished_count)
 
 
@@ -199,7 +199,7 @@ def get_searches():
     page = int(request.args.get("page")) - 1 if request.args.get("page") is not None else 0
     sortBy = request.args.get("sortby")  # posible values: id, from date, to date, keyword, time
     sortDesc = int(request.args.get("desc")) if request.args.get("desc") is not None else 0  # 1 or 0
-    results, total = searches_repo.get_searches(limit, page, sortBy, sortDesc)
+    results, total = searches_repo.get_searches(limit, page, sortBy, sortDesc, configuration.db_variables())
     return jsonify({"results": results, "total": total})
 
 
@@ -210,6 +210,6 @@ def get_searches_count():
     page = int(request.args.get("page")) - 1 if request.args.get("page") is not None else 0
     sortBy = request.args.get("sortby")  # posible values: id, from date, to date, keyword, time
     sortDesc = int(request.args.get("desc")) if request.args.get("desc") is not None else 0  # 1 or 0
-    results, total = searches_repo.get_searches_count(limit, page, sortBy, sortDesc)
+    results, total = searches_repo.get_searches_count(limit, page, sortBy, sortDesc, configuration.db_variables())
     return jsonify({"results": results, "total": total})
 

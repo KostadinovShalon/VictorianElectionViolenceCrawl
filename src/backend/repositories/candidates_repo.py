@@ -1,9 +1,6 @@
 import os
 from datetime import datetime
 
-from sqlalchemy import func
-
-from repositories import configuration
 from db.databasemodels import CandidateDocument, ArchiveSearchResult
 from db.db_session import session_scope
 import pandas as pd
@@ -11,8 +8,7 @@ import pandas as pd
 time_format = "%Y-%m-%d"
 
 
-def get_candidate_id_from_url(url):
-    db_vars = configuration.db_variables()
+def get_candidate_id_from_url(url, db_vars):
     if db_vars["local"]:
         path = os.path.join(db_vars["data_dir"], f"{CandidateDocument.__tablename__}.csv")
         if os.path.exists(path):
@@ -30,8 +26,7 @@ def get_candidate_id_from_url(url):
     return None
 
 
-def get_candidate_url_from_id(candidate_id):
-    db_vars = configuration.db_variables()
+def get_candidate_url_from_id(candidate_id, db_vars):
     if db_vars["local"]:
         path = os.path.join(db_vars["data_dir"], f"{CandidateDocument.__tablename__}.csv")
         if os.path.exists(path):
@@ -49,8 +44,7 @@ def get_candidate_url_from_id(candidate_id):
     return None
 
 
-def update_candidate_status(candidate_id, status, g_status, status_writer):
-    db_vars = configuration.db_variables()
+def update_candidate_status(candidate_id, status, g_status, status_writer, db_vars):
     if db_vars["local"]:
         path = os.path.join(db_vars["data_dir"], f"{CandidateDocument.__tablename__}.csv")
         if os.path.exists(path):
@@ -66,8 +60,7 @@ def update_candidate_status(candidate_id, status, g_status, status_writer):
             session.commit()
 
 
-def update_candidate_ocr(candidate_id, ocr):
-    db_vars = configuration.db_variables()
+def update_candidate_ocr(candidate_id, ocr, db_vars):
     if db_vars["local"]:
         path = os.path.join(db_vars["data_dir"], f"{CandidateDocument.__tablename__}.csv")
         if os.path.exists(path):
@@ -82,8 +75,7 @@ def update_candidate_ocr(candidate_id, ocr):
             session.commit()
 
 
-def get_candidate(candidate_id):
-    db_vars = configuration.db_variables()
+def get_candidate(candidate_id, db_vars):
     if db_vars["local"]:
         path = os.path.join(db_vars["data_dir"], f"{CandidateDocument.__tablename__}.csv")
         if os.path.exists(path):
@@ -117,9 +109,8 @@ def get_candidate(candidate_id):
             return candidate
 
 
-def get_candidates(ids, limit, page, sort_by, sort_desc):
+def get_candidates(ids, limit, page, sort_by, sort_desc, db_vars):
     cands, total = [], 0
-    db_vars = configuration.db_variables()
     if db_vars["local"]:
         path = os.path.join(db_vars["data_dir"], f"{CandidateDocument.__tablename__}.csv")
         search_result_path = os.path.join(db_vars["data_dir"], f"{ArchiveSearchResult.__tablename__}.csv")
@@ -232,10 +223,8 @@ def get_remote_count_candidates(ids=None):
     return results.count()
 
 
-def get_total_candidates():
+def get_total_candidates(db_vars):
     total = 0
-
-    db_vars = configuration.db_variables()
     if db_vars["local"]:
         path = os.path.join(db_vars["data_dir"], f"{CandidateDocument.__tablename__}.csv")
         if os.path.exists(path):

@@ -9,7 +9,7 @@ from scrapy.spiders import Spider
 from w3lib.html import remove_tags
 
 from Crawler.items import PageItem
-from repositories import repo_handler, configuration
+from repositories import repo_handler
 from db.databasemodels import ArchiveSearch, ArchiveSearchCount
 from Crawler.utils import headers
 from Crawler.utils.ocr import get_ocr_bna
@@ -27,12 +27,13 @@ class GeneralBNASpider(Spider):
     # todo: ask to user if want to recover fast or slow
     # TODO: change recovery implementation to multi-entries
 
-    def __init__(self, search_terms, advanced=False, split=None, recovery=False,
+    def __init__(self, search_terms, db_vars, advanced=False, split=None, recovery=False,
                  *args, **kwargs):
         super(GeneralBNASpider, self).__init__(*args, **kwargs)
         self.searches = []
         self.n_search = 0
         self.headers = headers
+        self.db_vars = db_vars
 
         self.url_count = 0
         self.start_from_row = 0
@@ -238,7 +239,7 @@ class GeneralBNASpider(Spider):
 
         search_id = archive_search.id
         if search_id == 0 or search_id is None:
-            search_id = repo_handler.insert_search(archive_search)
+            search_id = repo_handler.insert_search(archive_search, self.db_vars)
             print("Search inserted into the database", "Search id: ", search_id)
         search["search_db"].id = search_id
 
@@ -367,10 +368,10 @@ class GeneralBNASpider(Spider):
 class BNASpiderWithLogin(GeneralBNASpider):
     name = "BNAWithLogin"
 
-    def __init__(self, search_terms, advanced=False, split=None, recovery=False,
+    def __init__(self, search_terms, login_details, db_vars, advanced=False, split=None, recovery=False,
                  *args, **kwargs):
-        super().__init__(search_terms, advanced, split, recovery, *args, **kwargs)
-        self.login_details = configuration.get_login_details()
+        super().__init__(search_terms, db_vars, advanced, split, recovery, *args, **kwargs)
+        self.login_details = login_details
 
     def start_requests(self):
         yield scrapy.FormRequest(url=self.login_details['login_url'],

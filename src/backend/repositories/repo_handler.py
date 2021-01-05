@@ -1,14 +1,12 @@
 import os
 from datetime import datetime
 
-from repositories import configuration
 from db import dbconn
 from db.db_session import session_scope
 import pandas as pd
 
 
-def insert(data):
-    db_vars = configuration.db_variables()
+def insert(data, db_vars):
     if db_vars["local"]:
         path = os.path.join(db_vars["data_dir"], data.__tablename__ + ".csv")
         insert_data_to_local(data, path)
@@ -22,8 +20,7 @@ def insert(data):
             return data
 
 
-def insert_search(archive_search):
-    db_vars = configuration.db_variables()
+def insert_search(archive_search, db_vars):
     if db_vars["local"]:
         path = os.path.join(db_vars["data_dir"], archive_search.__tablename__ + ".csv")
         archive_search.timestamp = datetime.now()

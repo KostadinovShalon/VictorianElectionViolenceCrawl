@@ -3,7 +3,6 @@ from datetime import datetime
 
 from sqlalchemy import func
 
-from repositories import configuration
 from db.databasemodels import PortalDocument
 from db.db_session import session_scope
 import pandas as pd
@@ -13,8 +12,7 @@ from db.dbconn import update_page_url, update_art_url
 time_format = "%Y-%m-%d"
 
 
-def check_if_portal_exists(ocr, download_page):
-    db_vars = configuration.db_variables()
+def check_if_portal_exists(ocr, download_page, db_vars):
     if db_vars["local"]:
         path = os.path.join(db_vars["data_dir"], f"{PortalDocument.__tablename__}.csv")
         if os.path.exists(path):
@@ -35,8 +33,7 @@ def check_if_portal_exists(ocr, download_page):
         return cie, _id
 
 
-def update_portal_page_url(document_id, local_path=None):
-    db_vars = configuration.db_variables()
+def update_portal_page_url(document_id, db_vars, local_path=None):
     if db_vars["local"] and local_path is not None:
         path = os.path.join(db_vars["data_dir"], f"{PortalDocument.__tablename__}.csv")
         if os.path.exists(path):
@@ -49,8 +46,7 @@ def update_portal_page_url(document_id, local_path=None):
             update_page_url(session, document_id, page_url)
 
 
-def update_portal_cropped_url(document_id, local_path=None):
-    db_vars = configuration.db_variables()
+def update_portal_cropped_url(document_id, db_vars, local_path=None):
     if db_vars["local"] and local_path is not None:
         path = os.path.join(db_vars["data_dir"], f"{PortalDocument.__tablename__}.csv")
         if os.path.exists(path):
@@ -63,8 +59,7 @@ def update_portal_cropped_url(document_id, local_path=None):
             update_art_url(session, document_id, page_url)
 
 
-def get_portal_document(document_id):
-    db_vars = configuration.db_variables()
+def get_portal_document(document_id, db_vars):
     if db_vars["local"]:
         path = os.path.join(db_vars["data_dir"], f"{PortalDocument.__tablename__}.csv")
         if os.path.exists(path):
@@ -98,9 +93,8 @@ def get_portal_document(document_id):
             return document
 
 
-def get_portal_documents(limit, page, sort_by, sort_desc):
+def get_portal_documents(limit, page, sort_by, sort_desc, db_vars):
     docs, total = [], 0
-    db_vars = configuration.db_variables()
     if db_vars["local"]:
         path = os.path.join(db_vars["data_dir"], f"{PortalDocument.__tablename__}.csv")
         if os.path.exists(path):
@@ -201,10 +195,8 @@ def get_portal_documents(limit, page, sort_by, sort_desc):
     return docs, total
 
 
-def get_total_portal_documents():
+def get_total_portal_documents(db_vars):
     total = 0
-
-    db_vars = configuration.db_variables()
     if db_vars["local"]:
         path = os.path.join(db_vars["data_dir"], f"{PortalDocument.__tablename__}.csv")
         if os.path.exists(path):

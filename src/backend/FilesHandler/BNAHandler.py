@@ -1,7 +1,6 @@
 import os
 import shutil
 from io import BytesIO
-from repositories import configuration
 
 import requests
 from PIL import Image, ImageEnhance
@@ -12,16 +11,17 @@ from repositories.candidates_repo import get_candidate_url_from_id
 
 class BNAHandler:
 
-    def __init__(self, candidate_id, login_details):
+    def __init__(self, candidate_id, login_details, server_details, db_vars):
         self.login_details = login_details
         self.candidate_id = str(candidate_id)
-        self.item_url = get_candidate_url_from_id(int(candidate_id))  # Per article data URL
+        self.item_url = get_candidate_url_from_id(int(candidate_id), db_vars)  # Per article data URL
         self.searched_item = None  # Dict containing information about the item. download_full_pages must be called
         self.downloaded_pages = {}  # PDf temporal file paths of article's pages. download_full_pages must be called
         self.temp_full_file_pdf_name = None
         self.temp_cropped_file_pdf_name = None
-        self.local = configuration.server_variables()["local"]
-        self.files_dir = configuration.server_variables()["files_dir"]
+        self.local = server_details["local"]
+        self.files_dir = server_details["files_dir"]
+        self.server_details = server_details
         if self.local:
             self.root_files_dir = os.path.join(self.files_dir, self.candidate_id)
         else:
@@ -91,7 +91,7 @@ class BNAHandler:
             if self.temp_full_file_pdf_name is None:
                 raise Exception
             print('Uploading page pdf')
-            upload_file(document_id, self.temp_full_file_pdf_name, "page.pdf")
+            upload_file(document_id, self.temp_full_file_pdf_name, "page.pdf", self.server_details)
 
     def create_cropped_image(self):
         page_images = []
@@ -145,7 +145,7 @@ class BNAHandler:
             if self.temp_cropped_file_pdf_name is None:
                 raise Exception
             print('Uploading cropped pdf')
-            upload_file(document_id, self.temp_cropped_file_pdf_name, "art.pdf")
+            upload_file(document_id, self.temp_cropped_file_pdf_name, "art.pdf", self.server_details)
             print("Cropped file uploaded")
 
 
@@ -173,14 +173,3 @@ def join_pages(items, name):
         images[0].save(name, 'PDF', resolution=100.0, save_all=True, append_images=images[1:])
     for im in images:
         im.close()
-
-
-if __name__ == '__main__':
-    u = "https://www.britishnewspaperarchive.co.uk/viewer/items/bl/0000052/18000626/018/0003"
-
-    handler = BNAHandler(1, configuration.get_login_details(prepend='../'))
-    handler.download_full_pages()
-    handler.create_cropped_image()
-    handler.upload_full_pages(1)
-    handler.upload_cropped_pages(1)
-    handler.flush()

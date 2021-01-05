@@ -1,12 +1,10 @@
 import requests
 
-from repositories import configuration
 from Crawler.utils.ocr import get_ocr_bna
 from repositories.candidates_repo import get_candidate, update_candidate_ocr
 
 
-def update_ocr(candidate_id):
-    login_details = configuration.get_login_details()
+def update_ocr(candidate_id, login_details, db_vars):
     payload = {
         'Username': login_details["username"],
         "Password": login_details["password"],
@@ -17,9 +15,9 @@ def update_ocr(candidate_id):
     bna_session.post(login_details["login_url"], data=payload, headers=login_details["headers"])
 
     ocr = None
-    document = get_candidate(candidate_id)
+    document = get_candidate(candidate_id, db_vars)
     if 'britishnewspaper' in document.url:
         ocr = get_ocr_bna(document.url, session=bna_session)
     if ocr is not None:
-        update_candidate_ocr(candidate_id, ocr.encode('utf8', 'replace').decode('cp1252', 'ignore'))
+        update_candidate_ocr(candidate_id, ocr.encode('utf8', 'replace').decode('cp1252', 'ignore'), db_vars)
     return ocr

@@ -4,17 +4,15 @@ from datetime import datetime
 import pandas as pd
 from sqlalchemy import func
 
-from repositories import configuration
 from db.databasemodels import ArchiveSearch, ArchiveSearchCount
 from db.db_session import session_scope
 
 time_format = "%Y-%m-%d"
 
 
-def get_searches(limit, page, sort_by, sort_desc):
+def get_searches(limit, page, sort_by, sort_desc, db_vars):
     results = None
     total = 0
-    db_vars = configuration.db_variables()
     if db_vars["local"]:
         path = os.path.join(db_vars["data_dir"], f"{ArchiveSearch.__tablename__}.csv")
         if os.path.exists(path):
@@ -97,10 +95,9 @@ def get_searches(limit, page, sort_by, sort_desc):
     return results, total
 
 
-def get_searches_count(limit, page, sort_by, sort_desc):
+def get_searches_count(limit, page, sort_by, sort_desc, db_vars):
     results = None
     total = 0
-    db_vars = configuration.db_variables()
     if db_vars["local"]:
         path = os.path.join(db_vars["data_dir"], f"{ArchiveSearchCount.__tablename__}.csv")
         if os.path.exists(path):
@@ -187,10 +184,9 @@ def get_searches_count(limit, page, sort_by, sort_desc):
     return results, total
 
 
-def get_total_searches():
+def get_total_searches(db_vars):
     total = 0
 
-    db_vars = configuration.db_variables()
     if db_vars["local"]:
         path = os.path.join(db_vars["data_dir"], f"{ArchiveSearch.__tablename__}.csv")
         if os.path.exists(path):

@@ -10,6 +10,7 @@ from repositories.candidates_repo import get_candidate_id_from_url
 class NewsPipeline:
 
     def process_item(self, item, spider):
+        db_vars = spider.db_vars
         try:
             if spider.name == 'BNACounting':
                 identifier = item["identifier"]
@@ -17,17 +18,17 @@ class NewsPipeline:
                 c = article_item.results_count
                 print(f'Articles in search "{identifier} [{article_item.archive_date_start} - '
                       f'{article_item.archive_date_end}]": {article_item.results_count}')
-                repo_handler.insert_search(article_item)
+                repo_handler.insert_search(article_item, db_vars)
                 return dict(search_index=item["search_index"], search_count=c)
             else:
-                process_bna_item(item)
+                process_bna_item(item, db_vars)
                 return item
         except AttributeError:
-            process_bna_item(item)
+            process_bna_item(item, db_vars)
             return item
 
 
-def process_bna_item(page_item):
+def process_bna_item(page_item, db_vars):
     site = page_item['site']
     keyword = page_item['keyword']
     start_date = page_item['start_date']
@@ -55,7 +56,7 @@ def process_bna_item(page_item):
                                end_date=end_date, search_id=search_id)
 
     print('Writing data into database')
-    write_into_database(article_item)
+    write_into_database(article_item, db_vars)
 
 
 def extract_words_from_hints(hints):
@@ -84,7 +85,7 @@ def extract_county_from_bracket(str_):
         return None
 
 
-def write_into_database(article_item, site='BNA'):
+def write_into_database(article_item, db_vars, site='BNA'):
     publication_date = article_item["publish"]
     if site == 'BNA':
         publication_date = datetime.datetime.strptime(article_item["publish"], "%A %d %B %Y")
@@ -100,8 +101,8 @@ def write_into_database(article_item, site='BNA'):
                                         publication_date=publication_date,
                                         word_count=article_item["word"])
 
-    repo_handler.insert(search_result)
-    unique_result = get_candidate_id_from_url(url)
+    repo_handler.insert(search_result, db_vars)
+    unique_result = get_candidate_id_from_url(url, db_vars)
     if unique_result is None:
         ocr = ""
         page = 0
@@ -119,4 +120,4 @@ def write_into_database(article_item, site='BNA'):
                                                word_count=article_item["word"],
                                                page=page,
                                                ocr=ocr.encode('utf8', 'replace').decode('cp1252', 'ignore'))
-        repo_handler.insert(candidate_document)
+        repo_handler.insert(candidate_document, db_vars)

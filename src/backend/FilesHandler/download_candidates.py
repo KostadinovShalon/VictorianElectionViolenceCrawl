@@ -4,7 +4,6 @@ from Crawler.utils import bna_login_url, headers
 from FilesHandler.BNAHandler import BNAHandler
 from db.databasemodels import PortalDocument
 from Crawler.utils.ocr import get_ocr_bna
-from repositories import configuration
 from repositories.candidates_repo import update_candidate_status, get_candidate
 from repositories.portal_documents_repo import check_if_portal_exists, update_portal_page_url, update_portal_cropped_url
 from repositories.repo_handler import insert
@@ -12,7 +11,7 @@ from repositories.repo_handler import insert
 
 class CandidateDownloader:
 
-    def __init__(self, articles):
+    def __init__(self, articles, login_details, server_details, db_vars):
         self.processing_article_index = 0  # Current article being processed [from 1 to N]
         self.processed_articles = []  # List of tuples with the candidate id and the processed results
         self.status = (0, "Initializing")
@@ -27,10 +26,11 @@ class CandidateDownloader:
         self.articles_to_process = [art for art in articles if str(art["status"]) == "1"]  # Articles with status = 1
         self.total_portal_articles = len(self.articles_to_process)  # Number of articles with status = 1
         self.other_articles = [art for art in articles if str(art["status"]) != "1"]  # Articles with status != 1
-        self.login_details = configuration.get_login_details()
-        self.bna_handlers = {article["id"]: BNAHandler(article["id"], self.login_details)
+        self.login_details = login_details
+        self.bna_handlers = {article["id"]: BNAHandler(article["id"], self.login_details, server_details, db_vars)
                              for article in self.articles_to_process}
         self._cancel = False
+        self.db_vars = db_vars
 
     def cancel(self):
         self._cancel = True
@@ -41,14 +41,14 @@ class CandidateDownloader:
         self.status = 1, "Updating article status different than 1"
         for article in self.other_articles:
             update_candidate_status(article["id"], str(article["status"]),
-                                    article["g_status"], article["status_writer"])
-        login_details = configuration.get_login_details()
+                                    article["g_status"], article["status_writer"],
+                                    self.db_vars)
         s = requests.Session()
         payload = {
-            'Username': login_details["username"],
-            "Password": login_details["password"],
-            "RememberMe": login_details["remember_me"],
-            "NextPage": login_details["next_page"]}
+            'Username': self.login_details["username"],
+            "Password": self.login_details["password"],
+            "RememberMe": self.login_details["remember_me"],
+            "NextPage": self.login_details["next_page"]}
         s.post(bna_login_url, data=payload, headers=headers)
         if self._cancel:
             return
@@ -62,7 +62,7 @@ class CandidateDownloader:
             g_status = article["g_status"]
             status_writer = article["status_writer"]
 
-            candidate_document = get_candidate(candidate_id)
+            candidate_document = get_candidate(candidate_id, self.db_vars)
             publication_date = candidate_document.publication_date
             title = candidate_document.title
             county = candidate_document.publication_location
@@ -83,7 +83,7 @@ class CandidateDownloader:
             doc_title = title
             des = description_article
 
-            check_if_exists, existing_id = check_if_portal_exists(ocr, download_page)
+            check_if_exists, existing_id = check_if_portal_exists(ocr, download_page, self.db_vars)
 
             publication_date = '{0.year:4d}-{0.month:02d}-{0.day:02d}'.format(publication_date)
             if not check_if_exists:
@@ -101,12 +101,12 @@ class CandidateDownloader:
                 try:
                     handler = self.bna_handlers[candidate_id]
                     if document.ocr is None or document.ocr == '':
-                        ocr = get_ocr_bna(download_page, login_details, session=s)
+                        ocr = get_ocr_bna(download_page, self.login_details, session=s)
                         document.ocr = ocr.encode('latin-1', 'ignore')
                     if self._cancel:
                         return
-                    document = insert(document)
-                    update_candidate_status(candidate_id, str(article_status), g_status, status_writer)
+                    document = insert(document, self.db_vars)
+                    update_candidate_status(candidate_id, str(article_status), g_status, status_writer, self.db_vars)
                     file_processed = True
                     self.status = 3, f"Processing Article {candidate_id} (Downloading article): {title}"
                     handler.download_full_pages(s)
@@ -114,7 +114,7 @@ class CandidateDownloader:
                     if self._cancel:
                         return
                     handler.upload_full_pages(document.id)
-                    update_portal_page_url(document.id, handler.temp_full_file_pdf_name)
+                    update_portal_page_url(document.id, self.db_vars, handler.temp_full_file_pdf_name)
                     if self._cancel:
                         return
                     self.status = 5, f"Processing Article {candidate_id} (Cropping article): {title}"
@@ -125,7 +125,7 @@ class CandidateDownloader:
                     if self._cancel:
                         return
                     handler.upload_cropped_pages(document.id)
-                    update_portal_cropped_url(document.id, handler.temp_cropped_file_pdf_name)
+                    update_portal_cropped_url(document.id, self.db_vars, handler.temp_cropped_file_pdf_name)
                     art_uploaded = True
                 except Exception as e:
                     print(e)
@@ -141,7 +141,7 @@ class CandidateDownloader:
             else:
                 if self._cancel:
                     return
-                update_candidate_status(candidate_id, '101', g_status, status_writer)
+                update_candidate_status(candidate_id, '101', g_status, status_writer, self.db_vars)
                 self.processed_articles.append((candidate_id,
                                                 f"Article not inserted. "
                                                 f"An identical article was found at id = {existing_id}. "
