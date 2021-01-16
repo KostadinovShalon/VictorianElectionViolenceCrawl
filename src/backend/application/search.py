@@ -48,7 +48,11 @@ def start_search():
             print(mode == "advanced")
             input_search_terms = request.json["terms"]
             search_terms = get_search_terms_instances(input_search_terms, mode == 'advanced')
-            scrape_with_crochet(configuration.db_variables(), mode == "advanced", search_terms, ocr, split)
+            login_details = None
+            if ocr:
+                login_details = configuration.get_login_details()
+            scrape_with_crochet(configuration.db_variables(), mode == "advanced", search_terms, ocr, split,
+                                login_details)
             current_activity_info = {"search_terms": input_search_terms, "search_index": 0, "downloaded_articles": [],
                                      "total_articles": [], "scrapping": True}
             scrape_in_progress = True
@@ -106,11 +110,11 @@ def download_status():
 
 
 @crochet.run_in_reactor
-def scrape_with_crochet(db_vars, advanced, search_terms, ocr, split=None):
+def scrape_with_crochet(db_vars, advanced, search_terms, ocr, split=None, login_details=None):
     current_activity_info["scrapping"] = True
     dispatcher.connect(_item_scraped, signal=signals.item_scraped)
     if ocr:
-        eventual = crawl_runner.crawl(BNASpiderWithLogin, db_vars=db_vars, login_details=configuration.get_login_details(), advanced=advanced,
+        eventual = crawl_runner.crawl(BNASpiderWithLogin, db_vars=db_vars, login_details=login_details, advanced=advanced,
                                       search_terms=search_terms, split=split)
     else:
         eventual = crawl_runner.crawl(GeneralBNASpider, db_vars=db_vars, advanced=advanced, search_terms=search_terms, split=split)
